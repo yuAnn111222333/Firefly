@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>萤星 · 页面走丢了</title>
+<meta name="theme-color" content="#e9f1ff">
+<style>
+  html,body{height:100%;margin:0}
+  body{
+    display:flex;align-items:center;justify-content:center;
+    font-family:"PingFang SC","Microsoft YaHei","Segoe UI",system-ui,sans-serif;
+    background:linear-gradient(178deg,#e9f1ff 0%,#e1ebfa 52%,#d9e5f6 100%);
+    color:#1c2434;text-align:center;padding:24px;
+  }
+  .box{max-width:320px}
+  .dot{
+    width:64px;height:64px;margin:0 auto 22px;border-radius:50%;
+    background:radial-gradient(circle at 42% 38%,#fffdf0,#ffe98a 45%,#ffc21f 78%,#ffb300);
+    box-shadow:0 0 34px 10px rgba(255,196,40,.42);
+  }
+  h1{font-size:19px;font-weight:700;margin:0 0 10px}
+  p{font-size:14px;line-height:1.7;color:#6b7891;margin:0 0 22px}
+  a{
+    display:inline-block;padding:11px 26px;border-radius:99px;text-decoration:none;
+    background:#3b6ef5;color:#fff;font-size:15px;font-weight:600;
+    box-shadow:0 10px 24px rgba(59,110,245,.32);
+  }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="dot"></div>
+    <h1>这个页面不在了</h1>
+    <p>地址可能抄错，或者这一页已经被合并。<br>回首页继续背单词吧。</p>
+    <a href="./" id="home">回到萤星</a>
+  </div>
+<script>
+/* 404 页会被任意路径触发，相对链接会解析到错的地方。
+   GitHub Pages 项目站点是 /<repo>/…，用户站点是 /…，
+   仓库名由 deploy.sh 写进下面这行；留空就按用户站点处理。 */
+(function(){
+  var REPO = "";
+  document.getElementById("home").href = REPO ? "/" + REPO + "/" : "/";
+})();
+</script>
+</body>
+</html>
