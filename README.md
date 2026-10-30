@@ -41,6 +41,10 @@ Web 版跳过闸门的原因：浏览器里没有 `ANDROID_ID`，设备码退化
 
 ## 发布到 GitHub Pages
 
+> 日常更新**不要**单独跑这一节。两端共用一个源页面，改完应该跑工程根目录的
+> `bash release.sh`：它会依次生成网页、构建 APK、校验、冒烟，最后才推送。
+> 只跑这里等于「网页更新了、APK 还是旧的」。下面这些是它内部用的步骤，出问题时手动排查用。
+
 ```bash
 GITHUB_TOKEN=<你的 token> bash web-tools/deploy.sh <github用户名> <仓库名>
 ```
