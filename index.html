@@ -880,6 +880,25 @@
   }
   .toast.show{opacity:1;transform:translate(-50%,0)}
   .kbd{font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 6px;background:#fafbff}
+  /* ---------- iPad / 平板（视口 ≥700px）----------
+     页面是按 390px 手机排的，iPad Air 5 竖屏 CSS 宽是 820px。不收窄的话词库每行
+     近 790px，一行字太长反而难扫读，底部导航胶囊也会被拉成一根长条。收窄居中后
+     观感接近「大号手机」，横屏 1180px 同样适用。 */
+  @media (min-width:700px){
+    body{
+      padding-left:calc(28px + env(safe-area-inset-left,0px));
+      padding-right:calc(28px + env(safe-area-inset-right,0px));
+    }
+    .wrap{max-width:740px}
+    .tabs{max-width:440px}
+    /* 大屏上闪卡与题干可以更醒目，否则四周会显得空。
+       卡面高度跟着视口走：竖屏 1180 时约 448px，横屏 820 时约 312px，
+       不会因为固定值在横屏被顶出屏幕。 */
+    .fc-word{font-size:52px}
+    .fc-cn{font-size:26px}
+    .fc-inner{min-height:clamp(270px,38vh,460px)}
+    .qtext{font-size:30px}
+  }
   @media (max-width:620px){
     .row{grid-template-columns:1fr}
     .rowacts{justify-content:flex-start}
