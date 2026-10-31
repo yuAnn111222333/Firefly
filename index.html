@@ -625,6 +625,10 @@
     background:linear-gradient(180deg,#5a86ff,#3b6ef5);border-color:rgba(255,255,255,.45);color:#fff;font-weight:600;
     box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 4px 12px rgba(59,110,245,.30);
   }
+  /* chip 里的计数（话题词数）：比标签小一号、压暗一点，
+     选中时跟着反白 —— 用 tabular-nums 免得 28/33 换位时宽度跳动 */
+  .chip .cnt{margin-left:5px;font-size:11px;font-weight:600;opacity:.58;font-variant-numeric:tabular-nums}
+  .chip.on .cnt{opacity:.86}
 
   /* 右上角「今日已复习 / 错词」胶囊 */
   .meta-pill{
@@ -5068,7 +5072,7 @@ function applyBank(id){
   load();
   libState.q=""; libState.tag="ALL"; libState.tp="ALL"; libState.status="NEW"; libState.shown=150; libList=[];
   cardState.scope="NEW"; cardState.queue=[]; cardState.i=0; cardState.flipped=false; cardState.queueScope=null;
-  quiz.running=false; quiz.list=[]; quiz.i=0; quiz.cur=null;
+  quiz.running=false; quiz.list=[]; quiz.i=0; quiz.cur=null; quiz.topic="ALL";
   try{ localStorage.setItem(BANK_LS, b.id); }catch(e){}
   paintBrand();
 }
@@ -5688,7 +5692,19 @@ function gradeCard(n){
 }
 
 /* ==================== 测验 ==================== */
-const quiz = { mode:"en2cn", scope:"NEW", size:20, running:false, list:[], i:0, right:0, wrong:[], answered:false, cur:null, chosen:-1, input:"", cleared:false };
+/* topic = 话题筛选，与 scope（出题范围）是「与」的关系：
+   先按范围取池子，再按话题收窄。CET4 库没有话题列，此项恒为 ALL 且不显示。 */
+const quiz = { mode:"en2cn", scope:"NEW", topic:"ALL", size:20, running:false, list:[], i:0, right:0, wrong:[], answered:false, cur:null, chosen:-1, input:"", cleared:false };
+
+/* 当前词库里真有词的话题（顺序跟词库页一致） */
+function quizTopics(){
+  return TOPIC_ORDER.filter(t => W.some(x => x.tp === t));
+}
+/* 测验出题池 = 出题范围 ∩ 话题 */
+function quizPool(){
+  const base = scopeWords(quiz.scope);
+  return quiz.topic === "ALL" ? base : base.filter(x => x.tp === quiz.topic);
+}
 
 function renderQuiz(v){
   if(!quiz.running){ v.innerHTML = quizSetupHTML(); bindQuizSetup(v); return; }
@@ -5697,7 +5713,7 @@ function renderQuiz(v){
 }
 
 function quizSetupHTML(){
-  const n = scopeWords(quiz.scope).length;
+  const n = quizPool().length;
   return '<div class="panel">'
     + '<div class="sect" style="margin-top:0">选择题型</div>'
     + '<div class="chips" id="qmode">'
@@ -5708,6 +5724,7 @@ function quizSetupHTML(){
     + '<div class="chips" id="qscope">'
     +   Object.keys(SCOPE_LABEL).map(k=>'<button class="chip'+(quiz.scope===k?" on":"")+'" data-s="'+k+'">'+SCOPE_LABEL[k]+'</button>').join("")
     + '</div>'
+    + quizTopicHTML()
     + '<div class="sect">题量</div>'
     + '<div class="chips" id="qsize">'
     +   [10,20,30,50,100].map(k=>'<button class="chip'+(quiz.size===k?" on":"")+'" data-n="'+k+'">'+k+' 题</button>').join("")
@@ -5716,19 +5733,37 @@ function quizSetupHTML(){
     +   '<button class="btn primary" id="qstart" '+(n===0?"disabled":"")+'>开始测验</button>'
     +   '<span style="font-size:12.5px;color:var(--muted)">当前范围可用 '+n+' 词</span>'
     + '</div>'
-    + '<div style="font-size:12.5px;color:var(--muted);margin-top:6px">提示：答错的词会自动进入「错词本」，可随时专项复习。</div>'
+    + (n===0
+        ? '<div style="font-size:12.5px;color:var(--bad);margin-top:6px">这个组合下没有词，换个话题或范围试试。</div>'
+        : '<div style="font-size:12.5px;color:var(--muted);margin-top:6px">提示：答错的词会自动进入「错词本」，可随时专项复习。</div>')
+    + '</div>';
+}
+
+/* 话题筛选：只在词库里真有话题时出现（CET4 库没有第 6 列，就不占地方）。
+   数字是该话题在当前词库里的总词数，让人一眼看出哪个话题够凑一套题。 */
+function quizTopicHTML(){
+  const have = quizTopics();
+  if(!have.length) return "";
+  const cnt = t => W.filter(x => x.tp === t).length;
+  return '<div class="sect">话题（雅思专项）</div>'
+    + '<div class="chips" id="qtopic">'
+    +   [["ALL","全部话题"]].concat(have.map(t => [t, t, cnt(t)]))
+        .map(a => '<button class="chip'+(quiz.topic===a[0]?" on":"")+'" data-t="'+a[0]+'">'+a[1]
+                  + (a[2] ? '<span class="cnt">'+a[2]+'</span>' : '')+'</button>').join("")
     + '</div>';
 }
 
 function bindQuizSetup(v){
   $("#qmode").addEventListener("click", e => { const b=e.target.closest("button[data-m]"); if(!b) return; quiz.mode=b.dataset.m; render(); });
   $("#qscope").addEventListener("click", e => { const b=e.target.closest("button[data-s]"); if(!b) return; quiz.scope=b.dataset.s; render(); });
+  const tp = $("#qtopic");
+  if(tp) tp.addEventListener("click", e => { const b=e.target.closest("button[data-t]"); if(!b) return; quiz.topic=b.dataset.t; render(); });
   $("#qsize").addEventListener("click", e => { const b=e.target.closest("button[data-n]"); if(!b) return; quiz.size=+b.dataset.n; render(); });
   $("#qstart").addEventListener("click", startQuiz);
 }
 
 function startQuiz(){
-  const pool = scopeWords(quiz.scope);
+  const pool = quizPool();
   if(!pool.length){ toast("该范围暂无单词"); return; }
   const n = Math.min(quiz.size, pool.length);
   quiz.list = shuffle(pool).slice(0, n);
@@ -5761,6 +5796,7 @@ function quizRunHTML(){
   const total = quiz.list.length, no = quiz.i+1;
   let head = '<div class="qhead"><span class="qchip">第 '+no+' / '+total+' 题</span>'
     + '<span class="qchip">'+SCOPE_LABEL[quiz.scope]+'</span>'
+    + (quiz.topic!=="ALL" ? '<span class="qchip">'+quiz.topic+'</span>' : '')
     + '<span class="qchip">'+(quiz.mode==="en2cn"?"英→中":(quiz.mode==="cn2en"?"中→英":"拼写"))+'</span>'
     + '<span class="qchip ok">✓ '+quiz.right+'</span>'
     + '<span class="qchip bad">✗ '+quiz.wrong.length+'</span>'
