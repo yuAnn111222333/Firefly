@@ -664,23 +664,40 @@
   .rowacts{display:flex;align-items:center;gap:5px}
   /* 行内小按钮：词库页一次能有 300 个，绝对不能上 backdrop-filter，
      只做「半透明 + 内侧高光」的玻璃暗示，按压给果冻回弹。 */
+  /* 圆形按钮：原来 28px 配 10px 圆角，四个角在 Retina 上会露出「方块感」，
+     和全站其余 99px 的胶囊/圆形控件不是一套语言。改成 50% 就是标准圆形，
+     ✗ / ✓ 的字形居中也不会被切角。 */
   .sbtn{
-    width:28px;height:28px;border-radius:10px;
+    width:28px;height:28px;border-radius:50%;
     border:1px solid rgba(255,255,255,.9);
     background:linear-gradient(180deg,rgba(255,255,255,.9),rgba(255,255,255,.62));
     font:inherit;font-size:13px;line-height:1;cursor:pointer;color:var(--muted);
-    box-shadow:0 1px 0 rgba(255,255,255,.95) inset, 0 1px 3px rgba(24,40,80,.08);
-    transition:transform .34s var(--jelly-out), border-color .15s, color .15s, background .15s;
+    display:inline-flex;align-items:center;justify-content:center;
+    /* 圆形的高光要贴着弧走：外侧再加一圈 0 1px 的暗边，边缘才不会糊进背景 */
+    box-shadow:0 1px 0 rgba(255,255,255,.95) inset, 0 0 0 .5px rgba(24,40,80,.06), 0 1px 3px rgba(24,40,80,.10);
+    transition:transform .34s var(--jelly-out), border-color .15s, color .15s, background .15s, box-shadow .18s;
   }
   .sbtn:hover{border-color:rgba(59,110,245,.6);color:var(--brand)}
-  .sbtn:active{transform:scale(.88);transition-duration:.08s, .15s, .15s, .15s}
+  .sbtn:active{transform:scale(.88);transition-duration:.08s, .15s, .15s, .15s, .18s}
+  /* 点亮态：上半部一层更亮的高光（像一颗玻璃珠），外圈同色描边收边，
+     投影从 4px 收到 3px —— 圆形的影子本来就比方块短，太散会显脏。 */
   .sbtn.s1.on{
-    background:linear-gradient(180deg,#f2665c,#e0463c);border-color:rgba(255,255,255,.5);color:#fff;
-    box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 4px 10px rgba(224,70,60,.35);
+    background:radial-gradient(120% 120% at 50% 0%,#f47a70 0%,#ee5a4f 46%,#dc4137 100%);
+    border-color:rgba(255,255,255,.42);color:#fff;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.5) inset,
+      0 -1px 0 rgba(150,30,22,.28) inset,
+      0 0 0 .5px rgba(200,55,45,.45),
+      0 3px 8px rgba(224,70,60,.34);
   }
   .sbtn.s3.on{
-    background:linear-gradient(180deg,#2fb87e,#12a06a);border-color:rgba(255,255,255,.5);color:#fff;
-    box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 4px 10px rgba(18,160,106,.35);
+    background:radial-gradient(120% 120% at 50% 0%,#3ec98c 0%,#22ac76 46%,#0f9663 100%);
+    border-color:rgba(255,255,255,.42);color:#fff;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.5) inset,
+      0 -1px 0 rgba(6,90,58,.26) inset,
+      0 0 0 .5px rgba(14,140,92,.45),
+      0 3px 8px rgba(18,160,106,.34);
   }
   /* 学习状态底色改成半透明，压在玻璃面板上才透得出来（写死 #fff8f7 会变成一块白斑） */
   .row.st3{background:rgba(18,160,106,.08)}
@@ -934,7 +951,7 @@
     .toolbar input[type=search]{flex:1 1 100%;min-width:0}
     .toolbar select{flex:1 1 calc(50% - 4px);min-width:0}
     /* 词条操作按钮加大到触控尺寸 */
-    .sbtn{width:40px;height:40px;border-radius:11px;font-size:15px}
+    .sbtn{width:40px;height:40px;border-radius:50%;font-size:15px}
     .rowacts{gap:8px}
     /* 闪卡评分按钮：一行放下三个，加大触控高度 */
     .fc-acts{flex-wrap:nowrap;gap:7px}
@@ -5975,17 +5992,27 @@ function resetAll(){
    position:fixed 是相对「布局视口」定位的，而布局视口会延伸到工具栏背后，
    于是 bottom:14px 的胶囊会被工具栏盖住一部分（实测被遮 42~76px）。
    这里用 visualViewport 算出「布局视口底部 − 可视视口底部」的差值，
-   写入 --nav-lift，把导航栏整体抬到真正可见的区域里。 */
+   写入 --nav-lift，把导航栏整体抬到真正可见的区域里。
+
+   ★ 上限 96px，超出的部分一律丢掉。
+   工具栏最多也就遮 80px 上下，而 iPad 竖屏弹键盘时可视视口会被顶掉 400px，
+   公式照单全收就会把导航栏直接送到屏幕正中（实测 820×1180 上抬了约 400px）。
+   键盘本来就会盖住底部导航，抬它没有意义；iOS 收起键盘后又常常不再回调
+   resize，残值会一直挂着 —— 所以统一砍到 96，宁可少抬也不许飘。 */
+const NAV_LIFT_MAX = 96;
+let navLiftNow = 0;
 function syncNavLift(){
   const vv = window.visualViewport;
   let lift = 0;
-  if(vv){
+  /* 捏合放大时可视视口也会变矮，但那不是遮挡，不该抬 */
+  if(vv && vv.scale <= 1.02){
     // 可视视口底边相对布局视口底边的内缩量
     const inset = (window.innerHeight - (vv.height + vv.offsetTop));
-    if(inset > 0) lift = Math.round(inset);
+    if(inset > 0) lift = Math.min(Math.round(inset), NAV_LIFT_MAX);
   }
-  const cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--nav-lift")) || 0;
-  if(Math.abs(cur - lift) >= 1){
+  /* 缓存上一帧的值，别再 getComputedStyle —— 这个函数会挂在 scroll 上 */
+  if(lift !== navLiftNow){
+    navLiftNow = lift;
     document.documentElement.style.setProperty("--nav-lift", lift + "px");
   }
 }
@@ -5995,6 +6022,16 @@ if(window.visualViewport){
   window.visualViewport.addEventListener("scroll", syncNavLift);
 }
 window.addEventListener("resize", syncNavLift);
+window.addEventListener("pageshow", syncNavLift);
+/* 键盘收起后 iOS 有时既不 resize 也不 scroll，靠失焦补一刀 */
+document.addEventListener("focusout", () => setTimeout(syncNavLift, 160));
+document.addEventListener("focusin", () => setTimeout(syncNavLift, 320));
+/* 滚动时地址栏会伸缩，用 rAF 节流兜底（键盘收起也常伴随一次 scroll） */
+let navLiftRaf = 0;
+window.addEventListener("scroll", () => {
+  if(navLiftRaf) return;
+  navLiftRaf = requestAnimationFrame(() => { navLiftRaf = 0; syncNavLift(); });
+}, { passive:true });
 window.addEventListener("orientationchange", () => setTimeout(syncNavLift, 120));
 /* 尺寸变化后重新对齐导航指示器（宽度会变，位置需重算）；手势中不要打断 */
 const navRelayout = () => { if(!DR.on) navSlide(false); };
