@@ -1,4 +1,4 @@
-/* 萤星 Web 版 Service Worker
+/* 萤 Web 版 Service Worker
    整个应用就是一个 index.html（词库、样式、脚本全内嵌），所以缓存策略很简单：
    - 页面导航：先走网络拿新版，失败（离线）才用缓存 —— 保证更新能生效
    - 图标 / manifest / sw 自身：先给缓存，后台再更新

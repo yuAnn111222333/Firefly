@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>萤星</title>
-<meta name="description" content="萤星 · CET4 3000 词 + 雅思 2972 词，闪卡 / 测验 / 词库，离线可用">
+<title>萤</title>
+<meta name="description" content="萤 · CET4 3000 词 + 雅思 2972 词，闪卡 / 测验 / 词库，离线可用">
 <meta name="theme-color" content="#e9f1ff">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="萤星">
+<meta name="apple-mobile-web-app-title" content="萤">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='g'%3E%3Cstop offset='0' stop-color='%23fff9c4'/%3E%3Cstop offset='.55' stop-color='%23ffd54a'/%3E%3Cstop offset='1' stop-color='%23ffb300' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%23fff'/%3E%3Ccircle cx='32' cy='32' r='17' fill='url(%23g)'/%3E%3C/svg%3E">
 <style>
   :root{
@@ -488,13 +488,17 @@
   .cover[hidden]{display:none}
   .cover.out{opacity:0;transform:scale(1.035);pointer-events:none}
   .cover-brand{position:relative;z-index:1;text-align:center;animation:coverUp .92s cubic-bezier(.34,1.36,.5,1) both}
+  /* 应用名缩到一个字之后，44px 在 iPad 上只剩一个小黑点，撑不住整屏留白。
+     改成跟视口走：手机 56px、iPad 竖屏约 70px、横屏封顶 88px。 */
   .cover-mark{
-    font-size:44px;font-weight:600;letter-spacing:.26em;text-indent:.26em;
-    color:#1a2233;
+    font-size:clamp(56px,9.2vw,96px);font-weight:600;letter-spacing:.26em;text-indent:.26em;
+    color:#1a2233;line-height:1.06;
   }
+  /* 标语从「点亮每一个词」换成「飞萤扑火 向死而生」，八个字还按 .4em 排会散得收不住，
+     压到 .3em；两联之间靠 word-spacing 单独拉开，比多打一个空格干净。 */
   .cover-tag{
-    margin-top:15px;font-size:12px;letter-spacing:.4em;text-indent:.4em;
-    color:#98a3b8;font-weight:500;
+    margin-top:20px;font-size:clamp(12px,1.9vw,17px);letter-spacing:.3em;text-indent:.3em;
+    word-spacing:.9em;color:#98a3b8;font-weight:500;
   }
   @keyframes coverUp{from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:none}}
 
@@ -1070,8 +1074,8 @@
 <div class="cover" id="cover">
   <div class="cover-flow" aria-hidden="true"><i></i><i></i><i></i></div>
   <div class="cover-brand">
-    <div class="cover-mark">萤星</div>
-    <div class="cover-tag">点亮每一个词</div>
+    <div class="cover-mark">萤</div>
+    <div class="cover-tag">飞萤扑火 向死而生</div>
   </div>
 </div>
 <!-- 启动闸门：设备绑定激活（无有效激活码则停在此页） -->
