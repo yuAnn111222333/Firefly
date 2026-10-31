@@ -20,13 +20,12 @@
          上端 #4f92a2（青）· 中段 #9ed1d5（薄荷）· 下摆 #f5f1c8（奶油）
        整站只在这三个色相上做明度/饱和度的加减，不再出现蓝色系。
        换色由 android/tools/retheme.py 统一完成，别零散手改。 */
-    --bg:#edf5f4; --bg2:#deeceb; --card:#fff; --text:#1d2b2e; --muted:#6b8185;
+    --text:#1d2b2e; --muted:#6b8185;
     --line:#e2ecec; --brand:#43808f; --brand-soft:#e6f1f2;
     /* 奶油色只做点缀：色斑、光晕、强调数字，不用它铺面 */
-    --accent:#d9cb8a; --accent-soft:#f6f2d9;
+    --accent-soft:#f6f2d9;
     --ok:#12a06a; --ok-soft:#e6f7ef; --bad:#e0463c; --bad-soft:#fdecea;
     --radius:20px;
-    --shadow:0 10px 30px rgba(22,48,52,.10);
     /* 页面底色就是那条裙摆：上青下奶油，172° 微微倾斜。
        注意别把它调淡 —— 面板是 42% 白的玻璃，透过来 58% 是背景色，
        背景一旦压到 L≈.93 这种「安全浅色」，整页就只剩一片灰白，
@@ -49,7 +48,6 @@
        模糊只给大块（面板/卡片/选项/主按钮），小按钮和列表行不用 —— 词库页一次
        能出现 300 个行内按钮，每个都 backdrop-filter 会直接把帧率打穿。 */
     --glass:rgba(255,255,255,.42);
-    --glass-strong:rgba(255,255,255,.62);
     --glass-line:rgba(255,255,255,.78);
     --glass-blur:blur(26px) saturate(190%);
     --glass-hl:0 1.5px 0 rgba(255,255,255,.95) inset, 0 0 0 1px rgba(255,255,255,.5) inset, 0 -1px 0 rgba(255,255,255,.28) inset;
@@ -181,19 +179,6 @@
   .cover-flow i:nth-child(3){--c:var(--cv-c);width:54vw;height:46vh;left:58vw;top:-18vh;animation:flowB 41s cubic-bezier(.37,0,.63,1) infinite}
   .wrap{max-width:900px;margin:0 auto}
   .top{position:relative;display:flex;align-items:center;justify-content:space-between;gap:10px 12px;flex-wrap:wrap;margin-bottom:16px}
-
-  /* 玻璃面板的通用写法，各组件 @extend 式地复用这几条 */
-  .glass{
-    background:var(--glass);
-    -webkit-backdrop-filter:var(--glass-blur);
-    backdrop-filter:var(--glass-blur);
-    border:1px solid var(--glass-line);
-    box-shadow:var(--glass-hl), var(--glass-drop);
-  }
-  /* 不支持 backdrop-filter 时退回接近实色的白，至少不难看 */
-  @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-    .glass{background:rgba(255,255,255,.94)}
-  }
 
   /* 顶部品牌胶囊：点按可切换词库（CET4 / CET6 / 雅思） */
   .brand-pill{
@@ -1026,8 +1011,6 @@
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
   /* 词库没收的形式：压灰、不加粗，一眼能分出「能点开」和「只是形式」 */
   .fam-it.out .fam-f{color:#8b9fa3;font-weight:600}
-  .fam-note{margin-top:14px;padding-top:10px;border-top:1px solid rgba(22,48,52,.07);
-    font-size:11.5px;color:var(--muted);line-height:1.6}
   .fam-empty{font-size:13px;color:var(--muted);padding:12px 2px 2px;line-height:1.7}
   /* 单词本身给个极淡的虚线下划，暗示「这里能点」 */
   .word,.fc-wd{cursor:pointer;border-bottom:1px dashed rgba(67,128,143,.24)}
@@ -5885,7 +5868,6 @@ function paintCard(){
   fc.classList.toggle("flip", cardState.flipped);
   const x = cardState.queue[cardState.i];
   if(!x){ inner.innerHTML = '<div class="fc-face"><div class="fc-word" style="font-size:22px">🎉</div><div class="fc-hint">该范围已过完，换个范围或点「重新开始」</div></div>'; return; }
-  const l = lv(x.w);
   inner.innerHTML =
     '<div class="fc-face">'
     + '<div class="fc-word">'+esc(x.w)+'</div>'
@@ -5895,9 +5877,8 @@ function paintCard(){
     + '</div>'
     + '<div class="fc-face fc-back">'
     + '<div class="fc-cn">'+esc(x.cn)+'</div>'
-    + '<div class="fc-ph fc-wd" style="font-size:18px;font-weight:700;color:#1d2b2e">'+esc(x.w)+'</div>'
+    + '<div class="fc-ph fc-wd" style="font-size:18px;font-weight:700;color:var(--text)">'+esc(x.w)+'</div>'
     + '<div class="fc-ph">'+esc(x.ph)+' · '+esc(x.pos)+'</div>'
-    + '<div class="fc-hint">'+(l?("上次标记："+LEVEL[l]):"尚未标记")+' · 按 1 / 2 / 3 评分</div>'
     + '</div>';
 }
 
