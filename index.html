@@ -274,7 +274,7 @@
       /* 斜向镜面高光：只贴着左上那一小段弧，宽了就变成一层白纱 */
       linear-gradient(112deg,rgba(255,255,255,.58) 0%,rgba(255,255,255,.10) 9%,rgba(255,255,255,0) 22%),
       /* 玻璃本体：上沿略厚、下沿略薄 */
-      linear-gradient(180deg,rgba(255,255,255,.07) 0%,rgba(255,255,255,.02) 46%,rgba(255,255,255,.05) 100%);
+      linear-gradient(180deg,rgba(255,255,255,.05) 0%,rgba(255,255,255,.01) 46%,rgba(255,255,255,.04) 100%);
     border:1px solid rgba(255,255,255,.60);
     box-shadow:
       /* Highlight.Default：顶部镜面边缘光 + 内圈薄边 */
@@ -302,8 +302,8 @@
   .tabs .lg-core{
     position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
     background:transparent;
-    -webkit-backdrop-filter:blur(3px) saturate(136%);
-    backdrop-filter:blur(3px) saturate(136%);
+    -webkit-backdrop-filter:blur(.6px) saturate(118%);
+    backdrop-filter:blur(.6px) saturate(118%);
   }
   /* ② 边缘折射环：玻璃最像玻璃的地方就是边缘 —— 那里光线被掰弯，背景被拉伸。
      做法：把整块背景放大采样，再用线性遮罩只留下边缘那一条，
@@ -354,7 +354,7 @@
   .tabs::after{
     content:"";position:absolute;left:14px;right:14px;bottom:1px;height:34%;
     border-radius:0 0 999px 999px;pointer-events:none;z-index:2;
-    background:linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,.06));
+    background:linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,.04));
   }
 
   /* ④ 选中块：对应库里的 lens(10dp, 14dp, chromaticAberration = true)
