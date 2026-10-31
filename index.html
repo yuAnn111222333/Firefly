@@ -15,24 +15,34 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='g'%3E%3Cstop offset='0' stop-color='%23fff9c4'/%3E%3Cstop offset='.55' stop-color='%23ffd54a'/%3E%3Cstop offset='1' stop-color='%23ffb300' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%23fff'/%3E%3Ccircle cx='32' cy='32' r='17' fill='url(%23g)'/%3E%3C/svg%3E">
 <style>
   :root{
-    --bg:#eef2f9; --bg2:#dfe7f5; --card:#fff; --text:#1c2434; --muted:#6b7891;
-    --line:#e3e8f1; --brand:#3b6ef5; --brand-soft:#eaf0ff;
+    /* ---------- 基调：青 → 薄荷 → 奶油 ----------
+       取自参考图裙摆那片渐变，三个锚点：
+         上端 #4f92a2（青）· 中段 #9ed1d5（薄荷）· 下摆 #f5f1c8（奶油）
+       整站只在这三个色相上做明度/饱和度的加减，不再出现蓝色系。
+       换色由 android/tools/retheme.py 统一完成，别零散手改。 */
+    --bg:#edf5f4; --bg2:#deeceb; --card:#fff; --text:#1d2b2e; --muted:#6b8185;
+    --line:#e2ecec; --brand:#43808f; --brand-soft:#e6f1f2;
+    /* 奶油色只做点缀：色斑、光晕、强调数字，不用它铺面 */
+    --accent:#d9cb8a; --accent-soft:#f6f2d9;
     --ok:#12a06a; --ok-soft:#e6f7ef; --bad:#e0463c; --bad-soft:#fdecea;
     --radius:20px;
-    --shadow:0 10px 30px rgba(24,40,80,.10);
-    /* 页面底色拆两层：底渐变铺在 body 上（静止不动），四团色斑（蓝/紫/青/粉）
-       搬到 .bg-flow 里各自漂移。色相/明度/位置沿用原来 background 里的值。 */
-    --page-base:linear-gradient(178deg,#e9f1ff 0%,#e1ebfa 52%,#d9e5f6 100%);
-    --blob-a:rgba(88,132,255,.72);
-    --blob-b:rgba(170,124,255,.58);
-    --blob-c:rgba(64,200,255,.40);
-    --blob-d:rgba(255,158,214,.34);
-    --sheen:rgba(255,255,255,.20);
+    --shadow:0 10px 30px rgba(22,48,52,.10);
+    /* 页面底色就是那条裙摆：上青下奶油，172° 微微倾斜。
+       注意别把它调淡 —— 面板是 42% 白的玻璃，透过来 58% 是背景色，
+       背景一旦压到 L≈.93 这种「安全浅色」，整页就只剩一片灰白，
+       奶油和青都看不出来。这里彩度按参考图给足（S≈.45），奶油提前到 72%
+       （手机 844 高的视口里最下面 20% 会被底部导航盖住）。 */
+    --page-base:linear-gradient(172deg,#cfe9ed 0%,#c0e0e6 38%,#e4e4bd 70%,#f2ebba 100%);
+    --blob-a:rgba(79,146,162,.55);
+    --blob-b:rgba(150,205,210,.50);
+    --blob-c:rgba(238,222,130,.60);
+    --blob-d:rgba(110,168,175,.40);
+    --sheen:rgba(255,255,255,.22);
     /* 封面只留一层不透明渐变，色斑交给 .cover-flow 自己流动 */
-    --cover-bg:linear-gradient(178deg,#fbfdff,#f2f7ff);
-    --cv-a:rgba(120,160,255,.28);
-    --cv-b:rgba(90,210,255,.22);
-    --cv-c:rgba(170,124,255,.12);
+    --cover-bg:linear-gradient(172deg,#f2faf9 0%,#e6f3ee 56%,#f6f2d5 100%);
+    --cv-a:rgba(79,146,162,.26);
+    --cv-b:rgba(140,205,203,.32);
+    --cv-c:rgba(238,222,130,.44);
     /* ---------- 液态玻璃 ----------
        一块玻璃由四层叠出来：① 半透明底 ② 背后模糊+提饱和 ③ 内侧白高光（镜面边）
        ④ 柔和外投影。少哪一层都会「像一块灰色塑料」而不是玻璃。
@@ -43,7 +53,7 @@
     --glass-line:rgba(255,255,255,.78);
     --glass-blur:blur(26px) saturate(190%);
     --glass-hl:0 1.5px 0 rgba(255,255,255,.95) inset, 0 0 0 1px rgba(255,255,255,.5) inset, 0 -1px 0 rgba(255,255,255,.28) inset;
-    --glass-drop:0 14px 38px rgba(24,40,80,.13), 0 3px 10px rgba(24,40,80,.06);
+    --glass-drop:0 14px 38px rgba(22,48,52,.13), 0 3px 10px rgba(22,48,52,.06);
     /* 果冻：按下要快（80ms 收紧），松开要弹（带回弹的曲线慢慢放开） */
     --jelly-out:cubic-bezier(.34,1.56,.64,1);
     /* 底部导航栏抬升量：由 JS 按 visualViewport 实时写入，防止被手机浏览器工具栏盖住 */
@@ -109,7 +119,7 @@
      （.bg-flow 在 z-index:-1），不压上面的文字和列表。 */
   .bg-flow::before{
     content:"";position:absolute;left:0;right:0;bottom:0;height:240px;z-index:2;
-    background:linear-gradient(to top,rgba(216,228,246,.92) 0%,rgba(216,228,246,.60) 42%,transparent 100%);
+    background:linear-gradient(to top,rgba(214,234,233,.92) 0%,rgba(214,234,233,.60) 42%,transparent 100%);
   }
   /* 流光：一条很宽的斜向高光慢慢扫过去，玻璃面板会跟着「亮一下」，压得很淡 */
   .bg-flow::after{
@@ -191,14 +201,14 @@
     display:inline-flex;align-items:center;justify-content:center;
     padding:7px 11px 7px 18px;border-radius:999px;
     border:0;font-family:inherit;cursor:pointer;
-    background:linear-gradient(135deg,#7aa2ff 0%,#3b6ef5 55%,#2b52c4 100%);
+    background:linear-gradient(135deg,#7cb2bd 0%,#43808f 55%,#2f6673 100%);
     color:#fff;font-size:15px;font-weight:800;letter-spacing:2px;
     line-height:1.2;
     box-shadow:
       0 1px 0 rgba(255,255,255,.5) inset,
-      0 0 0 1px rgba(59,110,245,.18),
-      0 6px 16px rgba(59,110,245,.30);
-    text-shadow:0 1px 2px rgba(20,40,100,.28);
+      0 0 0 1px rgba(67,128,143,.18),
+      0 6px 16px rgba(67,128,143,.30);
+    text-shadow:0 1px 2px rgba(42,73,78,.28);
     user-select:none;-webkit-user-select:none;
     transition:transform .38s var(--jelly-out), box-shadow .2s;
   }
@@ -221,8 +231,8 @@
     box-shadow:
       0 1px 0 rgba(255,255,255,.95) inset,
       0 0 0 1px rgba(255,255,255,.55) inset,
-      0 2px 6px rgba(24,40,80,.08),
-      0 14px 32px rgba(24,40,80,.18);
+      0 2px 6px rgba(22,48,52,.08),
+      0 14px 32px rgba(22,48,52,.18);
     transform-origin:14px 0;
     /* 弹出时冲过 1.0 再回落，像被弹出来的 */
     animation:bankPop .34s cubic-bezier(.34,1.62,.52,1) both;
@@ -232,14 +242,14 @@
   .bank-chip{
     border:1px solid rgba(255,255,255,.7);font:inherit;font-size:12.5px;font-weight:700;letter-spacing:.4px;
     padding:6px 12px;border-radius:999px;cursor:pointer;white-space:nowrap;
-    background:rgba(255,255,255,.55);color:#5b6784;
+    background:rgba(255,255,255,.55);color:#5e7478;
     box-shadow:0 1px 0 rgba(255,255,255,.9) inset;
     transition:transform .34s var(--jelly-out), background .18s, color .18s, box-shadow .18s;
   }
   .bank-chip:active{transform:scale(.9);transition-duration:.08s, .18s, .18s, .18s}
   .bank-chip.on{
-    background:linear-gradient(180deg,#5a86ff,#3b6ef5);border-color:rgba(255,255,255,.45);color:#fff;
-    box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 4px 12px rgba(59,110,245,.35);
+    background:linear-gradient(180deg,#5c9aa8,#43808f);border-color:rgba(255,255,255,.45);color:#fff;
+    box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 4px 12px rgba(67,128,143,.35);
   }
 
   /* ---------- 底部导航：液态玻璃（移植 AndroidLiquidGlass 的分层折射思路） ----------
@@ -253,7 +263,7 @@
      */
   .tabs{
     /* 库里的 accentColor = 0xFF0088FF，单独用一个变量，避免污染正文的品牌色 */
-    --nav-accent:#0088ff;
+    --nav-accent:#3a8fa0;
     position:fixed;z-index:60;
     /* 整条 bar 从页面滚动里摘出来：在上面横滑/竖滑都不会带动页面，
        也不会被浏览器当成系统手势而中途发 pointercancel。 */
@@ -282,13 +292,13 @@
       0 0 0 1px rgba(255,255,255,.26) inset,
       0 -1.5px 0 rgba(255,255,255,.62) inset,
       /* 底部内阴影：玻璃有厚度，下沿会压暗一点点 */
-      0 -7px 14px rgba(24,40,80,.05) inset,
+      0 -7px 14px rgba(22,48,52,.05) inset,
       /* 外圈一道极细的冷色描边，让胶囊从白底上「立」起来 */
-      0 0 0 .5px rgba(24,40,80,.06),
+      0 0 0 .5px rgba(22,48,52,.06),
       /* Shadow：玻璃是悬空的，影子要比实心条更明显 */
-      0 2px 6px rgba(24,40,80,.08),
-      0 10px 24px rgba(24,40,80,.12),
-      0 22px 52px rgba(24,40,80,.12);
+      0 2px 6px rgba(22,48,52,.08),
+      0 10px 24px rgba(22,48,52,.12),
+      0 22px 52px rgba(22,48,52,.12);
     /* 注意：这里不能加 isolation:isolate —— 它会让 .tabs 成为 backdrop root，
        内部的 backdrop-filter 就只能采样本元素的纯色底，模糊彻底失效 */
     overflow:hidden;
@@ -333,7 +343,7 @@
     position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
     box-shadow:
       0 0 0 1px rgba(255,120,60,.14) inset,
-      0 0 0 2px rgba(60,150,255,.10) inset;
+      0 0 0 2px rgba(58,143,160,.10) inset;
     -webkit-mask-image:linear-gradient(180deg,#000 0 15%,transparent 32% 68%,#000 85% 100%);
     mask-image:linear-gradient(180deg,#000 0 15%,transparent 32% 68%,#000 85% 100%);
   }
@@ -375,9 +385,9 @@
       0 1px 0 rgba(255,255,255,.98) inset,
       0 -1px 0 rgba(255,255,255,.66) inset,
       0 0 0 1px rgba(255,255,255,.86) inset,
-      0 1px 3px rgba(24,40,80,.07),
-      0 5px 14px rgba(24,40,80,.10),
-      0 0 22px rgba(0,136,255,.13);
+      0 1px 3px rgba(22,48,52,.07),
+      0 5px 14px rgba(22,48,52,.10),
+      0 0 22px rgba(58,143,160,.13);
   }
   /* 边缘折射：上下带 / 左右带各自放大采样，再用线性遮罩只保留边缘
      （lens() 的 refractionHeight = 10dp、cornerRadius = 14dp） */
@@ -408,7 +418,7 @@
     position:absolute;inset:0;border-radius:inherit;pointer-events:none;
     box-shadow:
       0 0 0 1px rgba(255,110,70,.20) inset,
-      0 0 0 2px rgba(0,150,255,.17) inset;
+      0 0 0 2px rgba(58,143,160,.17) inset;
     opacity:calc(.5 + .5 * var(--press,0));
     transition:opacity .16s ease;
   }
@@ -419,9 +429,9 @@
       0 1px 0 rgba(255,255,255,1) inset,
       0 -1px 0 rgba(255,255,255,.70) inset,
       0 0 0 1px rgba(255,255,255,.95) inset,
-      0 3px 8px rgba(24,40,80,.12),
-      0 12px 26px rgba(24,40,80,.16),
-      0 0 30px rgba(0,136,255,.30);
+      0 3px 8px rgba(22,48,52,.12),
+      0 12px 26px rgba(22,48,52,.16),
+      0 0 30px rgba(58,143,160,.30);
   }
   /* 拖动中把图标的过渡压短：高亮要跟着胶囊即时交班，
      不压的话每跨一格都会起一段 0.4s 的弹跳，连起来就是「拖泥带水」。 */
@@ -432,7 +442,7 @@
 
   .tabs button{
     position:relative;z-index:4;
-    flex:1;min-width:0;border:0;background:transparent;color:#7b87a3;font:inherit;
+    flex:1;min-width:0;border:0;background:transparent;color:#7b9094;font:inherit;
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
     font-size:11px;font-weight:500;line-height:1;letter-spacing:.2px;
     padding:7px 4px 6px;border-radius:999px;cursor:pointer;
@@ -451,7 +461,7 @@
     /* 弹起比胶囊晚一点点、收得比胶囊慢一点点，像被胶囊「带」起来的 */
     transition:transform .4s cubic-bezier(.34,1.3,.42,1), stroke-width .26s ease, opacity .26s ease;
   }
-  .tabs button:hover{color:#5b6784}
+  .tabs button:hover{color:#5e7478}
   .tabs button:not(.on) svg{opacity:.88}
   .tabs button:active svg{transform:scale(.9)}
   /* 选中态：文字上色 + 图标弹起放大（胶囊本体由 .nav-lens 承担） */
@@ -462,7 +472,7 @@
     .tabs{background:rgba(255,255,255,.90)}
     .tabs .lg-ring-tb,.tabs .lg-ring-lr,
     .nav-lens .nl-edge-tb,.nav-lens .nl-edge-lr{display:none}
-    .nav-lens{background:linear-gradient(180deg,#fff,#e9f0ff)}
+    .nav-lens{background:linear-gradient(180deg,#fff,#e6f1f2)}
   }
 
   /* 页面不再接管横向手势：切页只走底部导航。
@@ -492,13 +502,16 @@
      改成跟视口走：手机 56px、iPad 竖屏约 70px、横屏封顶 88px。 */
   .cover-mark{
     font-size:clamp(56px,9.2vw,96px);font-weight:600;letter-spacing:.26em;text-indent:.26em;
-    color:#1a2233;line-height:1.06;
+    color:#1d2b2e;line-height:1.06;
+    /* 萤火：字背后一圈暖光。整页基调是青，唯一的暖色就落在这里 ——
+       呼应参考图裙摆下缘那层奶油，也正好是这个应用的名字。 */
+    text-shadow:0 0 34px rgba(238,206,102,.50), 0 0 82px rgba(240,226,142,.34);
   }
   /* 标语从「点亮每一个词」换成「飞萤扑火 向死而生」，八个字还按 .4em 排会散得收不住，
      压到 .3em；两联之间靠 word-spacing 单独拉开，比多打一个空格干净。 */
   .cover-tag{
     margin-top:20px;font-size:clamp(12px,1.9vw,17px);letter-spacing:.3em;text-indent:.3em;
-    word-spacing:.9em;color:#98a3b8;font-weight:500;
+    word-spacing:.9em;color:#97abaf;font-weight:500;
   }
   @keyframes coverUp{from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:none}}
 
@@ -508,7 +521,7 @@
     position:fixed;inset:0;z-index:999;
     display:flex;align-items:center;justify-content:center;padding:24px;
     /* 半透明遮罩，让底下的彩色背景透上来，激活卡才有东西可以「玻璃」 */
-    background:rgba(234,242,255,.55);
+    background:rgba(232,244,243,.55);
     -webkit-backdrop-filter:blur(30px) saturate(180%);
     backdrop-filter:blur(30px) saturate(180%);
     transition:opacity .32s ease, transform .32s ease;
@@ -527,8 +540,8 @@
   .lock-badge{
     width:58px;height:58px;margin:0 auto;border-radius:19px;
     display:flex;align-items:center;justify-content:center;
-    background:linear-gradient(135deg,#7aa2ff 0%,#3b6ef5 55%,#2b52c4 100%);
-    box-shadow:0 1px 0 rgba(255,255,255,.55) inset,0 10px 24px rgba(59,110,245,.34);
+    background:linear-gradient(135deg,#7cb2bd 0%,#43808f 55%,#2f6673 100%);
+    box-shadow:0 1px 0 rgba(255,255,255,.55) inset,0 10px 24px rgba(67,128,143,.34);
   }
   .lock-badge svg{width:26px;height:26px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   .lock-title{font-size:18px;font-weight:800;letter-spacing:.5px;margin-top:16px}
@@ -545,22 +558,22 @@
   .act-device{
     margin:20px auto 10px;padding:12px 16px;border-radius:16px;
     font-family:ui-monospace,Menlo,Consolas,monospace;
-    font-size:20px;font-weight:700;letter-spacing:2.5px;color:#22304d;
+    font-size:20px;font-weight:700;letter-spacing:2.5px;color:#24393d;
     background:rgba(255,255,255,.55);
-    box-shadow:0 1px 0 rgba(255,255,255,.95) inset, 0 0 0 1px rgba(255,255,255,.7) inset, 0 6px 16px rgba(24,40,80,.08);
+    box-shadow:0 1px 0 rgba(255,255,255,.95) inset, 0 0 0 1px rgba(255,255,255,.7) inset, 0 6px 16px rgba(22,48,52,.08);
     user-select:text;-webkit-user-select:text;
   }
   .act-copy{margin-bottom:14px}
   .act-input{
     width:100%;margin-top:4px;padding:13px 14px;border-radius:14px;
     border:1px solid rgba(255,255,255,.8);background:rgba(255,255,255,.48);
-    font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;color:#2b3550;
+    font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;color:#2b3f43;
     text-align:center;letter-spacing:.3px;
     resize:none;outline:none;
-    box-shadow:0 1px 2px rgba(24,40,80,.05) inset;
+    box-shadow:0 1px 2px rgba(22,48,52,.05) inset;
     transition:border-color .18s, box-shadow .18s;
   }
-  .act-input:focus{border-color:rgba(59,110,245,.65);box-shadow:0 0 0 4px rgba(59,110,245,.14)}
+  .act-input:focus{border-color:rgba(67,128,143,.65);box-shadow:0 0 0 4px rgba(67,128,143,.14)}
   .act-go{width:100%;margin-top:12px;padding:13px 16px;font-size:14.5px}
   .act-tip{font-size:11.5px;color:var(--muted);margin-top:14px;line-height:1.7}
 
@@ -588,17 +601,17 @@
     backdrop-filter:blur(12px) saturate(170%);
     color:var(--text);font:inherit;font-size:13px;
     padding:7px 13px;border-radius:12px;cursor:pointer;white-space:nowrap;
-    box-shadow:0 1px 0 rgba(255,255,255,.95) inset, 0 2px 6px rgba(24,40,80,.07);
+    box-shadow:0 1px 0 rgba(255,255,255,.95) inset, 0 2px 6px rgba(22,48,52,.07);
     transition:transform .34s var(--jelly-out), border-color .18s, color .18s, background .18s, box-shadow .18s;
   }
-  .btn:hover{border-color:rgba(59,110,245,.55);color:var(--brand)}
+  .btn:hover{border-color:rgba(67,128,143,.55);color:var(--brand)}
   .btn:active{transform:scale(.94);transition-duration:.08s, .18s, .18s, .18s, .18s}
   .btn.primary{
-    background:linear-gradient(180deg,#5a86ff,#3b6ef5 62%,#2f5fe0);
+    background:linear-gradient(180deg,#5c9aa8,#43808f 62%,#336b78);
     border-color:rgba(255,255,255,.42);color:#fff;font-weight:600;
-    box-shadow:0 1px 0 rgba(255,255,255,.45) inset, 0 6px 16px rgba(59,110,245,.34);
+    box-shadow:0 1px 0 rgba(255,255,255,.45) inset, 0 6px 16px rgba(67,128,143,.34);
   }
-  .btn.primary:hover{background:linear-gradient(180deg,#4d7cff,#2f5fe0 62%,#2850c4);color:#fff}
+  .btn.primary:hover{background:linear-gradient(180deg,#4f8f9d,#336b78 62%,#2f6673);color:#fff}
   .btn.danger:hover{border-color:rgba(224,70,60,.6);color:var(--bad)}
   .btn:disabled{opacity:.42;cursor:not-allowed;border-color:var(--glass-line);color:var(--muted);background:rgba(255,255,255,.6);box-shadow:none;transform:none}
   .btn.sm{padding:4px 9px;font-size:12px;border-radius:10px}
@@ -607,12 +620,12 @@
     font:inherit;font-size:14px;color:var(--text);
     /* 玻璃上的输入框做成「内凹的槽」：比周围暗一点，才有按进去的感觉；
        用纯白会浮在面板上，像贴了一块纸。 */
-    background:rgba(24,40,80,.05);
+    background:rgba(22,48,52,.05);
     border:1.5px solid rgba(255,255,255,.66);border-radius:12px;padding:8px 12px;outline:none;
-    box-shadow:0 1px 3px rgba(24,40,80,.06) inset, 0 1px 0 rgba(255,255,255,.55);
+    box-shadow:0 1px 3px rgba(22,48,52,.06) inset, 0 1px 0 rgba(255,255,255,.55);
     transition:border-color .18s, box-shadow .18s, background .18s;
   }
-  input:focus,select:focus{border-color:rgba(59,110,245,.65);box-shadow:0 0 0 4px rgba(59,110,245,.14)}
+  input:focus,select:focus{border-color:rgba(67,128,143,.65);box-shadow:0 0 0 4px rgba(67,128,143,.14)}
   input[type=search]{flex:1;min-width:180px}
 
   .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
@@ -623,11 +636,11 @@
     box-shadow:0 1px 0 rgba(255,255,255,.9) inset;
     transition:transform .34s var(--jelly-out), border-color .18s, color .18s, background .18s;
   }
-  .chip:hover{border-color:rgba(59,110,245,.5);color:var(--brand)}
+  .chip:hover{border-color:rgba(67,128,143,.5);color:var(--brand)}
   .chip:active{transform:scale(.93);transition-duration:.08s, .18s, .18s, .18s}
   .chip.on{
-    background:linear-gradient(180deg,#5a86ff,#3b6ef5);border-color:rgba(255,255,255,.45);color:#fff;font-weight:600;
-    box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 4px 12px rgba(59,110,245,.30);
+    background:linear-gradient(180deg,#5c9aa8,#43808f);border-color:rgba(255,255,255,.45);color:#fff;font-weight:600;
+    box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 4px 12px rgba(67,128,143,.30);
   }
 
   /* 右上角「今日已复习 / 错词」胶囊 */
@@ -636,41 +649,41 @@
     padding:3px 10px;border-radius:999px;
     background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(255,255,255,.72));
     border:1px solid rgba(255,255,255,.95);
-    box-shadow:0 1px 2px rgba(24,40,80,.06), 0 4px 12px rgba(24,40,80,.07), 0 0 0 1px #e4eaf4 inset;
-    font-size:11px;font-weight:600;color:#63718f;letter-spacing:.2px;
+    box-shadow:0 1px 2px rgba(22,48,52,.06), 0 4px 12px rgba(22,48,52,.07), 0 0 0 1px #e3eded inset;
+    font-size:11px;font-weight:600;color:#657c80;letter-spacing:.2px;
     font-variant-numeric:tabular-nums;white-space:nowrap;
     -webkit-backdrop-filter:blur(6px) saturate(150%);backdrop-filter:blur(6px) saturate(150%);
     transition:.2s;
   }
   .meta-pill .mp-item{display:inline-flex;align-items:center;gap:4px}
-  .meta-pill b{font-size:12px;font-weight:800;color:#16203a}
+  .meta-pill b{font-size:12px;font-weight:800;color:#1a2a2d}
   .meta-pill b.mp-warn{color:var(--bad)}
-  .meta-pill b.mp-zero{color:#9aa7bf}
-  .meta-pill .mp-sep{width:1px;height:10px;background:#dde4f0;flex:none}
+  .meta-pill b.mp-zero{color:#99adb1}
+  .meta-pill .mp-sep{width:1px;height:10px;background:#dce8e8;flex:none}
   /* 今日有新复习动作时，胶囊轻亮一下 */
-  .meta-pill.mp-hot{border-color:rgba(59,110,245,.35);box-shadow:0 1px 2px rgba(24,40,80,.06),0 0 0 3px rgba(59,110,245,.10),0 0 0 1px #e4eaf4 inset}
+  .meta-pill.mp-hot{border-color:rgba(67,128,143,.35);box-shadow:0 1px 2px rgba(22,48,52,.06),0 0 0 3px rgba(67,128,143,.10),0 0 0 1px #e3eded inset}
 
   /* ---------- 词表 ---------- */
   .row{
     display:grid;grid-template-columns:1fr auto;gap:8px 14px;align-items:center;
     padding:11px 12px;border-radius:16px;border:1px solid transparent;transition:.12s;
   }
-  .row + .row{border-top:1px solid rgba(24,40,80,.055);border-top-left-radius:0;border-top-right-radius:0}
-  /* 按住/点过这一行时的反馈底色。原来是 #f8faff，在白底上几乎看不出来；
-     改成半透明品牌蓝，浓度要压过「重点」标签的 --brand-soft(#eaf0ff) 一档，
+  .row + .row{border-top:1px solid rgba(22,48,52,.055);border-top-left-radius:0;border-top-right-radius:0}
+  /* 按住/点过这一行时的反馈底色。原来是 #f6fbfb，在白底上几乎看不出来；
+     改成半透明品牌蓝，浓度要压过「重点」标签的 --brand-soft(#e6f1f2) 一档，
      否则标签会陷进行底色里。
      浮起来就是独立的一块，四角都该是圆的 —— 所以这条必须写在 .row + .row 之后，
      同特异性下后写的才盖得住那个 0。 */
   .row:hover{
-    background:rgba(59,110,245,.15);
-    border-color:rgba(59,110,245,.26);
+    background:rgba(67,128,143,.15);
+    border-color:rgba(67,128,143,.26);
     border-radius:16px;
   }
   .wline{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
   .word{font-size:16.5px;font-weight:700;letter-spacing:.2px}
   .ph{font-size:12px;color:var(--muted);font-family:"Segoe UI",system-ui,sans-serif}
   .pos{font-size:11px;font-weight:600;color:var(--brand);background:var(--brand-soft);padding:1px 6px;border-radius:6px}
-  .cn{font-size:14px;color:#39445c;margin-top:2px}
+  .cn{font-size:14px;color:#3c5054;margin-top:2px}
   .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap}
   .tagchips{display:flex;gap:6px;flex-shrink:0}
   /* 话题 chip 有 8 个，300px 的行宽一行只放得下 5 个 —— 原来靠横向滚动，
@@ -681,8 +694,11 @@
   .tagchips .chip{padding:6px 13px;border-radius:99px}
   .tag.t1{background:var(--bad-soft);color:var(--bad)}
   .tag.tok{background:var(--ok-soft);color:var(--ok)}
-  .tag.t2{background:var(--brand-soft);color:var(--brand)}
-  .tag.t3{background:#f1f4fa;color:var(--muted)}
+  /* 「重点」用奶油色而不是品牌青：一行里本来就有一个青色的词性小方块，
+     两个都青会糊在一起，分不出哪个是词性、哪个是重要程度。
+     奶油也是参考图里的那一档暖色，正好补上整页缺的那点暖。 */
+  .tag.t2{background:var(--accent-soft);color:#8a7629}
+  .tag.t3{background:#eef4f4;color:var(--muted)}
   .rowacts{display:flex;align-items:center;gap:5px}
   /* 行内小按钮：词库页一次能有 300 个，绝对不能上 backdrop-filter，
      只做「半透明 + 内侧高光」的玻璃暗示，按压给果冻回弹。 */
@@ -696,10 +712,10 @@
     font:inherit;font-size:13px;line-height:1;cursor:pointer;color:var(--muted);
     display:inline-flex;align-items:center;justify-content:center;
     /* 圆形的高光要贴着弧走：外侧再加一圈 0 1px 的暗边，边缘才不会糊进背景 */
-    box-shadow:0 1px 0 rgba(255,255,255,.95) inset, 0 0 0 .5px rgba(24,40,80,.06), 0 1px 3px rgba(24,40,80,.10);
+    box-shadow:0 1px 0 rgba(255,255,255,.95) inset, 0 0 0 .5px rgba(22,48,52,.06), 0 1px 3px rgba(22,48,52,.10);
     transition:transform .34s var(--jelly-out), border-color .15s, color .15s, background .15s, box-shadow .18s;
   }
-  .sbtn:hover{border-color:rgba(59,110,245,.6);color:var(--brand)}
+  .sbtn:hover{border-color:rgba(67,128,143,.6);color:var(--brand)}
   .sbtn:active{transform:scale(.88);transition-duration:.08s, .15s, .15s, .15s, .18s}
   /* 点亮态：上半部一层更亮的高光（像一颗玻璃珠），外圈同色描边收边，
      投影从 4px 收到 3px —— 圆形的影子本来就比方块短，太散会显脏。 */
@@ -729,8 +745,10 @@
      所以这里要把两个上圆角补回来，同时把 .row + .row 带进来的那条 1px 上边框
      改成透明：圆角一出来，那条直线会横在弧顶外面，像描错了边。
      必须写在 .row + .row 之后（同特异性，后写的赢）。 */
-  .row.st3{background:rgba(18,160,106,.08);border-radius:16px;border-top-color:transparent}
-  .row.st1{background:rgba(224,70,60,.07);border-radius:16px;border-top-color:transparent}
+  /* 底色浓度比原来高一点：原来 .08 压在蓝底上还看得出，换到青底之后
+     绿和青的色相差变小了，同样浓度就糊成一片，读不出「这行已掌握」。 */
+  .row.st3{background:rgba(18,160,106,.12);border-radius:16px;border-top-color:transparent}
+  .row.st1{background:rgba(224,70,60,.10);border-radius:16px;border-top-color:transparent}
   /* 连续几行都有底色时，接缝处的圆角必须抹平：
      两个 16px 圆角上下相切会在交界处掐出一道「腰」，整段底色看着像一串
      叠起来的独立药丸，左边还漏出白色的缺口。只在整段底色的最外缘留圆角。
@@ -741,7 +759,7 @@
   .row.st1 + .row.st1, .row.st1 + .row.st3,
   .row.st3 + .row.st1, .row.st3 + .row.st3{
     border-top-left-radius:0;border-top-right-radius:0;
-    border-top-color:rgba(24,40,80,.055);
+    border-top-color:rgba(22,48,52,.055);
   }
   .row.st1:has(+ .row.st1), .row.st1:has(+ .row.st3),
   .row.st3:has(+ .row.st1), .row.st3:has(+ .row.st3){border-bottom-left-radius:0;border-bottom-right-radius:0}
@@ -760,12 +778,12 @@
     position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
     border:1px solid var(--glass-line);border-radius:24px;
     background:linear-gradient(160deg,rgba(255,255,255,.66) 0%,rgba(255,255,255,.34) 100%);
-    box-shadow:var(--glass-hl), 0 18px 40px rgba(24,40,80,.14), 0 2px 8px rgba(24,40,80,.06);
+    box-shadow:var(--glass-hl), 0 18px 40px rgba(22,48,52,.14), 0 2px 8px rgba(22,48,52,.06);
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:26px;text-align:center;
   }
   .fc-back{
     transform:rotateY(180deg);
-    background:linear-gradient(160deg,rgba(248,251,255,.74) 0%,rgba(226,238,255,.44) 100%);
+    background:linear-gradient(160deg,rgba(248,252,251,.74) 0%,rgba(226,240,239,.44) 100%);
   }
   .fc-word{font-size:40px;font-weight:800;letter-spacing:.5px;word-break:break-word}
   .fc-ph{font-size:15px;color:var(--muted)}
@@ -781,15 +799,15 @@
   .fc-prog{margin:16px 0 2px;user-select:none;-webkit-user-select:none}
   .fc-prog .fp-track{
     position:relative;height:18px;border-radius:999px;overflow:hidden;
-    background:linear-gradient(180deg,rgba(24,40,80,.07),rgba(24,40,80,.035));
-    box-shadow:0 1px 1px rgba(255,255,255,.8) inset, 0 1px 3px rgba(24,40,80,.05) inset;
+    background:linear-gradient(180deg,rgba(22,48,52,.07),rgba(22,48,52,.035));
+    box-shadow:0 1px 1px rgba(255,255,255,.8) inset, 0 1px 3px rgba(22,48,52,.05) inset;
   }
   /* 进度填充：宽度随掌握数增长；渐变持续流动 + 顶部高光，像一段会走的液体 */
   .fc-prog .fp-fill{
     position:absolute;left:0;top:0;bottom:0;width:0;border-radius:999px;
-    background:linear-gradient(90deg,#8fb4ff 0%,#5b8bff 45%,#3b6ef5 100%);
+    background:linear-gradient(90deg,#93bfc8 0%,#5c9aa8 45%,#43808f 100%);
     background-size:220% 100%;
-    box-shadow:0 0 14px rgba(59,110,245,.42);
+    box-shadow:0 0 14px rgba(67,128,143,.42);
     transition:width .8s cubic-bezier(.22,.9,.24,1);
     animation:fpFlow 4s linear infinite;
   }
@@ -809,9 +827,9 @@
   /* 刚评分完（掌握数+1）时，长条轻微亮一下，强化「在增长」的反馈 */
   .fc-prog.bump .fp-track{animation:fpBump .7s ease}
   @keyframes fpBump{
-    0%{box-shadow:0 0 0 1px #e2e9f5 inset, 0 1px 3px rgba(24,40,80,.07) inset}
-    38%{box-shadow:0 0 0 1px #c9daff inset, 0 0 16px rgba(59,110,245,.38)}
-    100%{box-shadow:0 0 0 1px #e2e9f5 inset, 0 1px 3px rgba(24,40,80,.07) inset}
+    0%{box-shadow:0 0 0 1px #e1ecec inset, 0 1px 3px rgba(22,48,52,.07) inset}
+    38%{box-shadow:0 0 0 1px #c9e1e5 inset, 0 0 16px rgba(67,128,143,.38)}
+    100%{box-shadow:0 0 0 1px #e1ecec inset, 0 1px 3px rgba(22,48,52,.07) inset}
   }
   .fc-prog.bump .fp-pct{animation:fpPop .7s cubic-bezier(.3,1.4,.4,1)}
   @keyframes fpPop{0%{transform:scale(1)}35%{transform:scale(1.14)}100%{transform:scale(1)}}
@@ -819,15 +837,15 @@
   .fc-prog .fp-meta{
     display:flex;align-items:center;justify-content:space-between;gap:10px;
     margin-top:9px;padding:0 3px;
-    font-size:12px;font-weight:600;color:#5a6a8c;
+    font-size:12px;font-weight:600;color:#5d7377;
     font-variant-numeric:tabular-nums;letter-spacing:.2px;
   }
-  .fc-prog .fp-meta b{font-size:12.5px;font-weight:800;color:#16203a}
+  .fc-prog .fp-meta b{font-size:12.5px;font-weight:800;color:#1a2a2d}
   .fc-prog .fp-meta .fp-right{display:flex;align-items:center;gap:8px;white-space:nowrap}
-  .fc-prog .fp-meta .fp-rest{color:#8593b0}
+  .fc-prog .fp-meta .fp-rest{color:#849a9e}
   .fc-prog .fp-meta .fp-pct{
-    color:#2b5bd7;font-weight:800;
-    background:#eaf1ff;border-radius:999px;padding:1px 8px;
+    color:#316a77;font-weight:800;
+    background:#e6f1f2;border-radius:999px;padding:1px 8px;
   }
 
   /* ---------- 测验 ---------- */
@@ -867,15 +885,15 @@
     -webkit-backdrop-filter:blur(14px) saturate(170%);
     backdrop-filter:blur(14px) saturate(170%);
     color:var(--text);font:inherit;font-size:15.5px;padding:13px 15px;border-radius:16px;cursor:pointer;
-    box-shadow:0 1px 0 rgba(255,255,255,.95) inset, 0 3px 10px rgba(24,40,80,.06);
+    box-shadow:0 1px 0 rgba(255,255,255,.95) inset, 0 3px 10px rgba(22,48,52,.06);
     transition:transform .34s var(--jelly-out), border-color .18s, background .18s, box-shadow .18s;
   }
-  .opt:hover:not(.locked){border-color:rgba(59,110,245,.5);background:rgba(255,255,255,.86)}
+  .opt:hover:not(.locked){border-color:rgba(67,128,143,.5);background:rgba(255,255,255,.86)}
   .opt:active:not(.locked){transform:scale(.975);transition-duration:.08s, .18s, .18s, .18s}
   .opt .key{
     flex:0 0 26px;height:26px;border-radius:9px;
     background:rgba(255,255,255,.85);color:var(--muted);
-    box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 1px 3px rgba(24,40,80,.08);
+    box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 1px 3px rgba(22,48,52,.08);
     font-size:13px;font-weight:700;display:grid;place-items:center;
   }
   .opt .txt{flex:1;padding-top:1px}
@@ -894,9 +912,9 @@
   /* 解析块：出现时带一点果冻弹出，不是干巴巴地淡入 */
   .explain{
     margin-top:16px;border-left:3px solid var(--brand);
-    background:linear-gradient(165deg,rgba(255,255,255,.8),rgba(238,245,255,.6));
-    border-radius:6px 16px 16px 6px;padding:13px 16px;font-size:14.5px;color:#39445c;
-    box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 6px 18px rgba(24,40,80,.07);
+    background:linear-gradient(165deg,rgba(255,255,255,.8),rgba(238,246,245,.6));
+    border-radius:6px 16px 16px 6px;padding:13px 16px;font-size:14.5px;color:#3c5054;
+    box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 6px 18px rgba(22,48,52,.07);
     animation:fade .42s cubic-bezier(.34,1.5,.6,1) both;
   }
   .explain b{color:var(--brand)}
@@ -910,7 +928,7 @@
   .stat{
     background:linear-gradient(165deg,rgba(255,255,255,.62),rgba(255,255,255,.36));
     border:1px solid var(--glass-line);border-radius:18px;padding:14px;
-    box-shadow:0 1px 0 rgba(255,255,255,.95) inset, 0 6px 18px rgba(24,40,80,.07);
+    box-shadow:0 1px 0 rgba(255,255,255,.95) inset, 0 6px 18px rgba(22,48,52,.07);
   }
   .stat .n{font-size:26px;font-weight:800;line-height:1.2}
   .stat .l{font-size:12.5px;color:var(--muted);margin-top:2px}
@@ -921,8 +939,8 @@
   .lettbars.tags .v{width:70px}
   .lb{display:flex;align-items:center;gap:8px;font-size:12.5px}
   .lb .k{width:14px;font-weight:700;color:var(--muted)}
-  .lb .t{flex:1;height:6px;background:rgba(24,40,80,.08);border-radius:99px;overflow:hidden;box-shadow:0 1px 1px rgba(255,255,255,.7) inset}
-  .lb .t i{display:block;height:100%;background:linear-gradient(90deg,#8fb0ff,#3b6ef5);border-radius:99px}
+  .lb .t{flex:1;height:6px;background:rgba(22,48,52,.08);border-radius:99px;overflow:hidden;box-shadow:0 1px 1px rgba(255,255,255,.7) inset}
+  .lb .t i{display:block;height:100%;background:linear-gradient(90deg,#93bfc8,#43808f);border-radius:99px}
   .lb .v{width:52px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
   .sect{font-size:14px;font-weight:700;margin:20px 0 10px}
 
@@ -930,27 +948,27 @@
   .me-head{display:flex;align-items:center;gap:14px;margin-bottom:16px}
   .me-avatar{
     width:54px;height:54px;flex:none;border-radius:17px;
-    background:linear-gradient(145deg,#6f9bff 0%,#3b6ef5 58%,#2c53c6 100%);
+    background:linear-gradient(145deg,#74a8b4 0%,#43808f 58%,#2f6673 100%);
     color:#fff;font-size:21px;font-weight:800;letter-spacing:1px;
     display:flex;align-items:center;justify-content:center;
-    box-shadow:0 8px 18px rgba(59,110,245,.30), 0 1px 0 rgba(255,255,255,.55) inset;
+    box-shadow:0 8px 18px rgba(67,128,143,.30), 0 1px 0 rgba(255,255,255,.55) inset;
   }
   .me-info{flex:1;min-width:0}
   .me-name{font-size:16px;font-weight:700}
   .me-sub{font-size:12.5px;color:var(--muted);margin-top:3px}
-  .me-bar{height:7px;border-radius:99px;background:#e9edf7;margin-top:9px;overflow:hidden}
-  .me-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#8fb0ff,#3b6ef5);transition:width .35s}
+  .me-bar{height:7px;border-radius:99px;background:#e8f0f0;margin-top:9px;overflow:hidden}
+  .me-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#93bfc8,#43808f);transition:width .35s}
   .me-danger{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .me-danger .tip{font-size:12.5px;color:var(--muted);line-height:1.6}
 
   .toast{
     position:fixed;left:50%;bottom:calc(104px + var(--nav-lift,0px) + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;pointer-events:none;
-    background:rgba(28,36,52,.80);
+    background:rgba(28,44,46,.80);
     -webkit-backdrop-filter:blur(16px) saturate(170%);
     backdrop-filter:blur(16px) saturate(170%);
     border:1px solid rgba(255,255,255,.16);
     color:#fff;font-size:13.5px;padding:9px 18px;border-radius:99px;
-    box-shadow:0 1px 0 rgba(255,255,255,.14) inset, 0 10px 28px rgba(24,40,80,.30);z-index:99;
+    box-shadow:0 1px 0 rgba(255,255,255,.14) inset, 0 10px 28px rgba(22,48,52,.30);z-index:99;
     /* 弹出来的时候冲过头再落定 */
     transition:opacity .26s ease, transform .4s var(--jelly-out);
   }
@@ -967,14 +985,14 @@
     padding:18px 12px calc(18px + env(safe-area-inset-bottom,0px));
   }
   .fam[hidden]{display:none}
-  .fam-mask{position:absolute;inset:0;background:rgba(20,28,48,.30);
+  .fam-mask{position:absolute;inset:0;background:rgba(28,39,40,.30);
     -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:famFade .22s ease}
   .fam-sheet{
     position:relative;width:min(560px,100%);max-height:100%;overflow:auto;
-    background:rgba(252,253,255,.93);
+    background:rgba(252,254,253,.93);
     -webkit-backdrop-filter:blur(30px) saturate(160%);backdrop-filter:blur(30px) saturate(160%);
     border:1px solid rgba(255,255,255,.72);border-radius:26px;
-    box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 18px 48px rgba(24,40,80,.26);
+    box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 18px 48px rgba(22,48,52,.26);
     padding:16px 18px 14px;
     animation:famPop .26s cubic-bezier(.2,.9,.25,1);
   }
@@ -986,7 +1004,7 @@
   .fam-x,.fam-back{
     flex:none;width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.9);
     background:rgba(255,255,255,.72);color:var(--muted);font:inherit;font-size:14px;cursor:pointer;
-    box-shadow:0 1px 0 rgba(255,255,255,.95) inset, 0 1px 3px rgba(24,40,80,.10);
+    box-shadow:0 1px 0 rgba(255,255,255,.95) inset, 0 1px 3px rgba(22,48,52,.10);
   }
   .fam-x{margin-left:auto}
   .fam-back{font-size:15px}
@@ -1000,20 +1018,20 @@
     border:0;background:none;padding:8px 9px;border-radius:12px;cursor:pointer;
     transition:background .15s;
   }
-  .fam-it:hover{background:rgba(59,110,245,.09)}
-  .fam-it:active{background:rgba(59,110,245,.15)}
+  .fam-it:hover{background:rgba(67,128,143,.09)}
+  .fam-it:active{background:rgba(67,128,143,.15)}
   .fam-f{font-size:15.5px;font-weight:700;color:var(--text)}
   .fam-p{font-size:10.5px;font-weight:700;color:var(--brand);background:var(--brand-soft);padding:1px 6px;border-radius:6px;flex:none}
   .fam-m{font-size:12.5px;color:var(--muted);margin-left:auto;padding-left:8px;max-width:56%;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
   /* 词库没收的形式：压灰、不加粗，一眼能分出「能点开」和「只是形式」 */
-  .fam-it.out .fam-f{color:#8b93a7;font-weight:600}
-  .fam-note{margin-top:14px;padding-top:10px;border-top:1px solid rgba(24,40,80,.07);
+  .fam-it.out .fam-f{color:#8b9fa3;font-weight:600}
+  .fam-note{margin-top:14px;padding-top:10px;border-top:1px solid rgba(22,48,52,.07);
     font-size:11.5px;color:var(--muted);line-height:1.6}
   .fam-empty{font-size:13px;color:var(--muted);padding:12px 2px 2px;line-height:1.7}
   /* 单词本身给个极淡的虚线下划，暗示「这里能点」 */
-  .word,.fc-wd{cursor:pointer;border-bottom:1px dashed rgba(59,110,245,.24)}
-  .kbd{font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 6px;background:#fafbff}
+  .word,.fc-wd{cursor:pointer;border-bottom:1px dashed rgba(67,128,143,.24)}
+  .kbd{font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 6px;background:#fafdfc}
   /* ---------- iPad / 平板（视口 ≥700px）----------
      页面是按 390px 手机排的，iPad Air 5 竖屏 CSS 宽是 820px。不收窄的话词库每行
      近 790px，一行字太长反而难扫读，底部导航胶囊也会被拉成一根长条。收窄居中后
@@ -5877,7 +5895,7 @@ function paintCard(){
     + '</div>'
     + '<div class="fc-face fc-back">'
     + '<div class="fc-cn">'+esc(x.cn)+'</div>'
-    + '<div class="fc-ph fc-wd" style="font-size:18px;font-weight:700;color:#1c2434">'+esc(x.w)+'</div>'
+    + '<div class="fc-ph fc-wd" style="font-size:18px;font-weight:700;color:#1d2b2e">'+esc(x.w)+'</div>'
     + '<div class="fc-ph">'+esc(x.ph)+' · '+esc(x.pos)+'</div>'
     + '<div class="fc-hint">'+(l?("上次标记："+LEVEL[l]):"尚未标记")+' · 按 1 / 2 / 3 评分</div>'
     + '</div>';
