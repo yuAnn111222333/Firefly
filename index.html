@@ -718,8 +718,29 @@
       0 3px 8px rgba(18,160,106,.34);
   }
   /* 学习状态底色改成半透明，压在玻璃面板上才透得出来（写死 #fff8f7 会变成一块白斑） */
-  .row.st3{background:rgba(18,160,106,.08)}
-  .row.st1{background:rgba(224,70,60,.07)}
+  /* 这块底色是「浮起来的一张独立小卡片」，四角都必须是圆的。
+     .row + .row 为了让相邻行拼成连续列表，把 border-top-left/right-radius 置了 0；
+     那个规则本来只该作用于「无底色的普通行」，可它按位置选中（.row + .row），
+     轮到红色/绿色行时上圆角也被一起抹平 —— 底色就成了上直角、下圆角的矩形。
+     所以这里要把两个上圆角补回来，同时把 .row + .row 带进来的那条 1px 上边框
+     改成透明：圆角一出来，那条直线会横在弧顶外面，像描错了边。
+     必须写在 .row + .row 之后（同特异性，后写的赢）。 */
+  .row.st3{background:rgba(18,160,106,.08);border-radius:16px;border-top-color:transparent}
+  .row.st1{background:rgba(224,70,60,.07);border-radius:16px;border-top-color:transparent}
+  /* 连续几行都有底色时，接缝处的圆角必须抹平：
+     两个 16px 圆角上下相切会在交界处掐出一道「腰」，整段底色看着像一串
+     叠起来的独立药丸，左边还漏出白色的缺口。只在整段底色的最外缘留圆角。
+     上缘靠相邻选择器（前一行有底色就抹平）；下缘得看「后面」有没有底色，
+     只能用 :has()——不支持时退化成圆角相切，能看，只是不好看。
+     抹平圆角的同时要把那条 1px 细线放回来：底色块是平涂的，
+     没有线的话一整段同色底色里的几行会糊成一片，看不出分行。 */
+  .row.st1 + .row.st1, .row.st1 + .row.st3,
+  .row.st3 + .row.st1, .row.st3 + .row.st3{
+    border-top-left-radius:0;border-top-right-radius:0;
+    border-top-color:rgba(24,40,80,.055);
+  }
+  .row.st1:has(+ .row.st1), .row.st1:has(+ .row.st3),
+  .row.st3:has(+ .row.st1), .row.st3:has(+ .row.st3){border-bottom-left-radius:0;border-bottom-right-radius:0}
   .empty{padding:40px 10px;text-align:center;color:var(--muted);font-size:14px}
   .empty .big{font-size:34px;margin-bottom:8px}
 
