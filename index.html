@@ -266,20 +266,29 @@
     display:flex;gap:2px;align-items:stretch;
     border-radius:999px;
     padding:4px;
-    /* containerColor = 0xFAFAFA @ alpha 0.4
-       真机上 blur 由 GPU 合成，比库里 vibrancy+blur 稍弱，故略加厚到 .50，
-       既保留通透感，又不让背后的文字糊住标签 */
-    background:rgba(250,250,250,.50);
-    border:1px solid rgba(255,255,255,.62);
+    /* 透明玻璃（clear glass），不是磨砂玻璃（frosted）。
+       两者的区别全在「模糊半径」：磨砂靠 blur(20px+) 把背后糊成一片白雾，
+       透明玻璃几乎不糊，靠的是 ① 边缘折射把背景掰弯 ② 镜面高光 ③ 极淡的厚度色。
+       所以这里底色只留 4~12% 的白（玻璃本体的厚度感），blur 压到 2.5px。 */
+    background:
+      /* 斜向镜面高光：只贴着左上那一小段弧，宽了就变成一层白纱 */
+      linear-gradient(112deg,rgba(255,255,255,.58) 0%,rgba(255,255,255,.10) 9%,rgba(255,255,255,0) 22%),
+      /* 玻璃本体：上沿略厚、下沿略薄 */
+      linear-gradient(180deg,rgba(255,255,255,.07) 0%,rgba(255,255,255,.02) 46%,rgba(255,255,255,.05) 100%);
+    border:1px solid rgba(255,255,255,.60);
     box-shadow:
-      /* Highlight.Default：顶部与四周的镜面边缘光 */
-      0 1px 0 rgba(255,255,255,.98) inset,
+      /* Highlight.Default：顶部镜面边缘光 + 内圈薄边 */
+      0 1.5px 0 rgba(255,255,255,1) inset,
       0 0 0 1px rgba(255,255,255,.26) inset,
-      0 -1px 0 rgba(255,255,255,.46) inset,
-      /* Shadow：悬浮投影 */
-      0 2px 6px rgba(24,40,80,.10),
-      0 8px 20px rgba(24,40,80,.15),
-      0 16px 44px rgba(24,40,80,.16);
+      0 -1.5px 0 rgba(255,255,255,.62) inset,
+      /* 底部内阴影：玻璃有厚度，下沿会压暗一点点 */
+      0 -7px 14px rgba(24,40,80,.05) inset,
+      /* 外圈一道极细的冷色描边，让胶囊从白底上「立」起来 */
+      0 0 0 .5px rgba(24,40,80,.06),
+      /* Shadow：玻璃是悬空的，影子要比实心条更明显 */
+      0 2px 6px rgba(24,40,80,.08),
+      0 10px 24px rgba(24,40,80,.12),
+      0 22px 52px rgba(24,40,80,.12);
     /* 注意：这里不能加 isolation:isolate —— 它会让 .tabs 成为 backdrop root，
        内部的 backdrop-filter 就只能采样本元素的纯色底，模糊彻底失效 */
     overflow:hidden;
@@ -287,42 +296,46 @@
     /* 注意：--nav-shift 由 navP 弹簧（navPanelTick）逐帧写入，这里不能再加 transition，
        否则每帧都被缓动追一次，整条 bar 会持续「拖尾」 */
   }
-  /* ① 玻璃主体：中心强模糊 + 提高饱和（vibrancy）+ blur(8dp) */
+  /* ① 玻璃主体：只做极轻的模糊 + 提饱和。
+     透明玻璃不该把背后糊掉 —— blur(2.5px) 刚好抹掉字缘的毛刺，
+     但词条的轮廓、色块的分界仍然看得见，这才是「隔着玻璃看」而不是「隔着一层白」。 */
   .tabs .lg-core{
     position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
-    background:rgba(255,255,255,.08);
-    -webkit-backdrop-filter:blur(22px) saturate(142%) brightness(1.02);
-    backdrop-filter:blur(22px) saturate(142%) brightness(1.02);
+    background:transparent;
+    -webkit-backdrop-filter:blur(3px) saturate(136%);
+    backdrop-filter:blur(3px) saturate(136%);
   }
-  /* ② 边缘折射环：放大采样 + 线性遮罩
-     胶囊是横向长条，上下边缘与左右圆头需要不同方向的缩放才能都产生折射，
-     故拆成「上下带」与「左右带」两层，各自用线性遮罩只保留边缘。 */
+  /* ② 边缘折射环：玻璃最像玻璃的地方就是边缘 —— 那里光线被掰弯，背景被拉伸。
+     做法：把整块背景放大采样，再用线性遮罩只留下边缘那一条，
+     于是边缘透出来的东西「错位」了，眼睛读到的是折射。
+     上下带 / 左右带分开，因为胶囊是长条，两个方向需要不同的拉伸倍数。 */
   .tabs .lg-ring-tb{
-    position:absolute;inset:-5px 0;border-radius:999px;pointer-events:none;z-index:0;
-    transform:scale(1,1.30);
-    background:rgba(255,255,255,.02);
-    -webkit-backdrop-filter:blur(1.2px) saturate(150%) brightness(1.05);
-    backdrop-filter:blur(1.2px) saturate(150%) brightness(1.05);
-    -webkit-mask-image:linear-gradient(180deg,#000 0 15%,transparent 30% 70%,#000 85% 100%);
-    mask-image:linear-gradient(180deg,#000 0 15%,transparent 30% 70%,#000 85% 100%);
+    position:absolute;inset:-6px 0;border-radius:999px;pointer-events:none;z-index:0;
+    transform:scale(1,1.62);
+    background:rgba(255,255,255,.015);
+    -webkit-backdrop-filter:blur(.4px) saturate(150%) brightness(1.05);
+    backdrop-filter:blur(.4px) saturate(150%) brightness(1.05);
+    -webkit-mask-image:linear-gradient(180deg,#000 0 11%,transparent 26% 74%,#000 89% 100%);
+    mask-image:linear-gradient(180deg,#000 0 11%,transparent 26% 74%,#000 89% 100%);
   }
   .tabs .lg-ring-lr{
-    position:absolute;inset:0 -16px;border-radius:999px;pointer-events:none;z-index:0;
-    transform:scale(1.24,1);
-    background:rgba(255,255,255,.02);
-    -webkit-backdrop-filter:blur(1.2px) saturate(150%) brightness(1.05);
-    backdrop-filter:blur(1.2px) saturate(150%) brightness(1.05);
-    -webkit-mask-image:linear-gradient(90deg,#000 0 7%,transparent 15% 85%,#000 93% 100%);
-    mask-image:linear-gradient(90deg,#000 0 7%,transparent 15% 85%,#000 93% 100%);
+    position:absolute;inset:0 -22px;border-radius:999px;pointer-events:none;z-index:0;
+    transform:scale(1.48,1);
+    background:rgba(255,255,255,.015);
+    -webkit-backdrop-filter:blur(.4px) saturate(150%) brightness(1.05);
+    backdrop-filter:blur(.4px) saturate(150%) brightness(1.05);
+    -webkit-mask-image:linear-gradient(90deg,#000 0 5%,transparent 13% 87%,#000 95% 100%);
+    mask-image:linear-gradient(90deg,#000 0 5%,transparent 13% 87%,#000 95% 100%);
   }
-  /* ③ 色散边：厚玻璃边缘的波长分离（弱化，只在上/下沿轻微显现） */
+  /* ③ 色散边：厚玻璃边缘的波长分离 —— 上沿偏暖、下沿偏冷，很淡，
+     但正是这一点点「不干净」让边缘看起来有厚度，而不是一条 CSS 描边。 */
   .tabs .lg-chroma{
     position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
     box-shadow:
-      0 0 0 1px rgba(255,120,60,.12) inset,
-      0 0 0 2px rgba(60,150,255,.09) inset;
-    -webkit-mask-image:linear-gradient(180deg,#000 0 18%,transparent 34% 66%,#000 82% 100%);
-    mask-image:linear-gradient(180deg,#000 0 18%,transparent 34% 66%,#000 82% 100%);
+      0 0 0 1px rgba(255,120,60,.14) inset,
+      0 0 0 2px rgba(60,150,255,.10) inset;
+    -webkit-mask-image:linear-gradient(180deg,#000 0 15%,transparent 32% 68%,#000 85% 100%);
+    mask-image:linear-gradient(180deg,#000 0 15%,transparent 32% 68%,#000 85% 100%);
   }
   /* 顶部弧形镜面高光（模拟玻璃厚度处的光反射） */
   .tabs::before{
@@ -336,11 +349,12 @@
       rgba(255,255,255,.55) 90%,
       rgba(255,255,255,0) 100%);
   }
-  /* 底部折射余晖：玻璃下沿的二次反光 */
+  /* 底部折射余晖：玻璃下沿的二次反光。
+     透明玻璃的下沿几乎不积白光，留一点点就够，多了就变回磨砂。 */
   .tabs::after{
-    content:"";position:absolute;left:14px;right:14px;bottom:1px;height:38%;
+    content:"";position:absolute;left:14px;right:14px;bottom:1px;height:34%;
     border-radius:0 0 999px 999px;pointer-events:none;z-index:2;
-    background:linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,.26));
+    background:linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,.06));
   }
 
   /* ④ 选中块：对应库里的 lens(10dp, 14dp, chromaticAberration = true)
@@ -354,9 +368,9 @@
        前缘被拉出去才像液体；居中缩放只会显得整体变胖。 */
     transform-origin:var(--lead,50%) 50%;
     will-change:transform;              /* 每帧改 --tx/--sx，提前提层免得起帧抖动 */
-    background:linear-gradient(180deg,rgba(255,255,255,.84) 0%,rgba(248,251,255,.66) 44%,rgba(230,241,255,.78) 100%);
-    -webkit-backdrop-filter:blur(8px) saturate(150%) brightness(1.07);
-    backdrop-filter:blur(8px) saturate(150%) brightness(1.07);
+    background:linear-gradient(180deg,rgba(255,255,255,.18) 0%,rgba(255,255,255,.06) 46%,rgba(255,255,255,.14) 100%);
+    -webkit-backdrop-filter:blur(2.5px) saturate(150%) brightness(1.04);
+    backdrop-filter:blur(2.5px) saturate(150%) brightness(1.04);
     box-shadow:
       0 1px 0 rgba(255,255,255,.98) inset,
       0 -1px 0 rgba(255,255,255,.66) inset,
@@ -386,7 +400,7 @@
   .nav-lens .nl-hl{
     position:absolute;inset:0;border-radius:inherit;pointer-events:none;
     background:linear-gradient(158deg,rgba(255,255,255,.96) 0%,rgba(255,255,255,.32) 36%,rgba(255,255,255,0) 62%);
-    opacity:calc(.68 + .32 * var(--press,0));
+    opacity:calc(.40 + .34 * var(--press,0));
     transition:opacity .16s ease;
   }
   /* chromaticAberration：青 / 品红细内环，模拟厚玻璃的波长分离 */
@@ -424,10 +438,14 @@
     padding:7px 4px 6px;border-radius:999px;cursor:pointer;
     transition:color .26s cubic-bezier(.4,0,.2,1);
     white-space:nowrap;-webkit-tap-highlight-color:transparent;
-    text-shadow:0 0 5px rgba(255,255,255,.9),0 0 10px rgba(255,255,255,.6);
+    /* 透明玻璃背后是真内容，标签得靠一圈白光把字「托」出来，
+       否则会跟背后的词条糊在一起 */
+    text-shadow:0 0 6px rgba(255,255,255,1),0 0 12px rgba(255,255,255,.88),0 0 18px rgba(255,255,255,.5);
   }
   .tabs button svg{
     width:21px;height:21px;flex:none;
+    /* 图标没有 text-shadow，用 drop-shadow 造同样的白色描边光 */
+    filter:drop-shadow(0 0 3px rgba(255,255,255,.95)) drop-shadow(0 0 7px rgba(255,255,255,.6));
     fill:none;stroke:currentColor;stroke-width:1.8;
     stroke-linecap:round;stroke-linejoin:round;
     /* 弹起比胶囊晚一点点、收得比胶囊慢一点点，像被胶囊「带」起来的 */
