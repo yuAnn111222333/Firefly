@@ -625,10 +625,6 @@
     background:linear-gradient(180deg,#5a86ff,#3b6ef5);border-color:rgba(255,255,255,.45);color:#fff;font-weight:600;
     box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 4px 12px rgba(59,110,245,.30);
   }
-  /* chip 里的计数（话题词数）：比标签小一号、压暗一点，
-     选中时跟着反白 —— 用 tabular-nums 免得 28/33 换位时宽度跳动 */
-  .chip .cnt{margin-left:5px;font-size:11px;font-weight:600;opacity:.58;font-variant-numeric:tabular-nums}
-  .chip.on .cnt{opacity:.86}
 
   /* 右上角「今日已复习 / 错词」胶囊 */
   .meta-pill{
@@ -5740,16 +5736,15 @@ function quizSetupHTML(){
 }
 
 /* 话题筛选：只在词库里真有话题时出现（CET4 库没有第 6 列，就不占地方）。
-   数字是该话题在当前词库里的总词数，让人一眼看出哪个话题够凑一套题。 */
+   按钮上不写词数 —— 8 个话题带数字后一排挤不下，也容易让人以为数字是「已学/待学」，
+   实际词数在下面「当前范围可用 N 词」那里看就够了。 */
 function quizTopicHTML(){
   const have = quizTopics();
   if(!have.length) return "";
-  const cnt = t => W.filter(x => x.tp === t).length;
   return '<div class="sect">话题（雅思专项）</div>'
     + '<div class="chips" id="qtopic">'
-    +   [["ALL","全部话题"]].concat(have.map(t => [t, t, cnt(t)]))
-        .map(a => '<button class="chip'+(quiz.topic===a[0]?" on":"")+'" data-t="'+a[0]+'">'+a[1]
-                  + (a[2] ? '<span class="cnt">'+a[2]+'</span>' : '')+'</button>').join("")
+    +   [["ALL","全部话题"]].concat(have.map(t => [t, t]))
+        .map(a => '<button class="chip'+(quiz.topic===a[0]?" on":"")+'" data-t="'+a[0]+'">'+a[1]+'</button>').join("")
     + '</div>';
 }
 
