@@ -860,6 +860,10 @@
   }
   /* 「我的」页底部的一行数据来源署名，CC-BY 要求标出来 */
   .srcnote{font-size:11.5px;color:var(--muted);opacity:.75;margin-top:18px;text-align:center;line-height:1.7}
+  /* 版本行：等宽字、比 srcnote 更淡，只做核对用，不抢视线 */
+  .verline{font-family:ui-monospace,Consolas,monospace;font-size:11px;letter-spacing:.02em;
+    color:var(--muted);opacity:.62;margin-top:14px;padding-top:12px;text-align:center;
+    border-top:1px solid rgba(67,128,143,.10)}
   .qsub{text-align:center;font-size:13px;color:var(--muted);margin-bottom:20px}
   .opts{display:flex;flex-direction:column;gap:10px}
   /* 选项：一页只有 4 个，可以上真玻璃。按下去像按一颗果冻 */
@@ -5111,6 +5115,9 @@ const BANKS = [
 ];
 const BANK_LS = "cet4-bank-v1";
 const LEVEL = {1:"不认识",3:"已掌握"};
+/* 版本号：显示在「我的」页底部。由 release.sh --bump 与 AndroidManifest 同步 +1，
+   手动改容易忘，改版本走 release.sh。 */
+const APP_VER = "0.6.22";
 
 let bankId = "cet4";
 let LS = BANKS[0].ls;
@@ -6197,6 +6204,8 @@ function renderMe(v){
     + (bankId === "ielts"
         ? '<div class="srcnote">雅思词表为人工选词：剑桥真题高频 + 7.5 分核心 + GRE 精选，共 '+W.length+' 词。</div>'
         : '')
+    /* 版本行：让「我看到的是不是最新版」一眼可查，省得靠音标、释义去比对 */
+    + '<div class="verline">v'+APP_VER+' · 词库 '+(WORDS.length+IELTS_WORDS.length)+' 词 · 派生词中文 '+Object.keys(FAM_CN).length+' 条</div>'
     + '</div></div>';
 
   v.innerHTML = html;
