@@ -5117,7 +5117,7 @@ const BANK_LS = "cet4-bank-v1";
 const LEVEL = {1:"不认识",3:"已掌握"};
 /* 版本号：显示在「我的」页底部。由 release.sh --bump 与 AndroidManifest 同步 +1，
    手动改容易忘，改版本走 release.sh。 */
-const APP_VER = "0.6.22";
+const APP_VER = "0.6.23";
 
 let bankId = "cet4";
 let LS = BANKS[0].ls;
@@ -5258,6 +5258,21 @@ function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("sh
 const FAM_GROUPS = [["n","名词 n."],["v","动词 v."],["a","形容词 adj."],["r","副词 adv."],["","其他形式"]];
 let famStack = [];
 
+/* 全库释义索引：词 → 词条，跨所有词库合并（同名以先出现的为准）。
+   为什么需要它：词族是跨库的。accountable 在雅思库，它的词源 account 只在
+   CET4 库；用户在雅思库打开词家族时，BY_WORD 里查不到 account，释义就空了。
+   FAM_CN 也救不了 —— 那张表只收「两个库都没有」的形式，account 在 CET4 里，
+   所以不在表里。用这张合并表兜底，运行时建一次，不占文件体积。 */
+let ALL_WORD = null;
+function allIndex(){
+  if(ALL_WORD) return ALL_WORD;
+  ALL_WORD = new Map();
+  BANKS.forEach(b => b.words.forEach(a => {
+    if(!ALL_WORD.has(a[0])) ALL_WORD.set(a[0], { w:a[0], pos:a[2], cn:a[3] });
+  }));
+  return ALL_WORD;
+}
+
 function famItems(w){
   const raw = FAM[w];
   if(!raw) return null;
@@ -5268,7 +5283,7 @@ function famItems(w){
    分组也按这个结果走，否则 academy 这种会被塞进「其他形式」。 */
 function famCode(it){
   if(it.p) return it.p;
-  const x = BY_WORD.get(it.f);
+  const x = BY_WORD.get(it.f) || allIndex().get(it.f);
   if(!x) return "";
   const m = x.pos.match(/^(n|v|adj|adv)/);
   return m ? { n:"n", v:"v", adj:"a", adv:"r" }[m[1]] : "";
@@ -5304,8 +5319,10 @@ function famHTML(w){
        + arr.map(it => {
            const y = BY_WORD.get(it.f);
            const pos = k ? "" : famPosText(famCode(it));
-           // 在词库里的用词库释义，不在的查 FAM_CN
-           const m = y ? y.cn : (FAM_CN[it.f] || "");
+           // 释义来源：当前库 → 另一个库（跨库词族）→ FAM_CN（两库都没有的形式）。
+           // 注意 y 和 z 分开：y 决定「能不能点开、要不要压灰」，z 只负责给中文。
+           const z = y || allIndex().get(it.f);
+           const m = z ? z.cn : (FAM_CN[it.f] || "");
            return '<button class="fam-it'+(y ? "" : " out")+'" data-fam-w="'+esc(it.f)+'">'
              + '<span class="fam-f">'+esc(it.f)+'</span>'
              + (pos ? '<span class="fam-p">'+esc(pos)+'</span>' : '')
