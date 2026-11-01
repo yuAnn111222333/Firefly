@@ -6185,7 +6185,7 @@ function renderMe(v){
     + '</div>'
     + '<div class="sect">授权</div>'
     + '<div class="me-danger">'
-    +   '<span class="tip">本机设备码 <b style="font-family:ui-monospace,Consolas,monospace;letter-spacing:1px">'+esc(deviceCode())+'</b> · 已激活</span>'
+    +   '<span class="tip">本机设备码 <b style="font-family:ui-monospace,Consolas,monospace;letter-spacing:1px">'+esc(deviceCode())+'</b> · '+esc(licText())+'</span>'
     +   '<button class="btn" id="btnDeact">取消激活</button>'
     + '</div>'
     + '<div class="sect">危险操作</div>'
@@ -6316,17 +6316,23 @@ if(window.ResizeObserver){
 }
 
 /* ==================== 启动闸门：设备激活 ====================
-   设备码(ANDROID_ID 加盐哈希前 10 位) + 作者私钥签发的 ECDSA 码。
-   没有有效激活码就进不去，APK 转发给别人也白搭。
-   公钥嵌在下面，私钥在 tools/owner_key.json（不进 APK）。
-   激活状态存 localStorage，跟着设备走；清数据后需重新激活（同一设备码仍可用）。 */
+   设备码（10 位十六进制）+ 作者私钥签发的 ECDSA 码。
+   没有有效激活码就进不去，APK 或网页被转发给别人也白搭。
+   公钥嵌在下面，私钥在 android/tools/owner_key.json（不进任何产物）。
+   激活状态存 localStorage，跟着设备走；清数据后需重新激活（设备码不变）。
+
+   设备码的来源分两条路：
+     APK     原生 ANDROID_ID 前 10 位（一直如此，改了会让已激活的机器全部失效）
+     网页    浏览器指纹的 SHA-256 前 10 位
+   网页不能靠 localStorage 里存一个随机串 —— iOS 上 Safari 和「添加到主屏幕」的
+   PWA 存储是隔离的，那样加一次主屏幕就要重新找作者要一次码。
+
+   激活码有两种格式，前端都认：
+     永久码  <base64url 签名>          签的是「设备码」
+     限期码  YYYYMMDD.<base64url 签名>  签的是「设备码|YYYYMMDD」
+   限期码到期后自动退回激活面板。 */
 const PUB_KEY_B64 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEF4-LQZcTcJl9I8LcKeCjBqM0wDCGma41FxjdChQjZH_t-z_WGfmhzPO4SQhwpHx3uZgAPI2VZSmmwrrDHbCeUw";
 const LIC_LS = "cet4-license-v1";
-
-/* Web 版开关：浏览器里没有 ANDROID_ID，deviceRaw() 退化成每个浏览器随机生成的
-   一串 id，激活闸门在这里等于「自己给自己发码」。所以网页版直接放行。
-   要把它变成需要激活的私发版本，把这里改成 false（设备码仍会正常显示）。 */
-const WEB_FREE = true;
 
 /* base64url -> Uint8Array */
 function b64uToBytes(s){
@@ -6337,39 +6343,119 @@ function b64uToBytes(s){
   return u;
 }
 
-/* 设备码：优先用原生 ANDROID_ID 的加盐哈希；浏览器里退回随机 ID（仅调试用） */
-function deviceRaw(){
-  let raw = "";
-  try{ if(window.Native && Native.deviceId) raw = String(Native.deviceId() || ""); }catch(e){}
-  if(!raw){
-    try{ raw = localStorage.getItem("cet4-device-id") || ""; }catch(e){}
-    if(!raw){
-      raw = Array.from(crypto.getRandomValues(new Uint8Array(8)))
-        .map(b => b.toString(16).padStart(2, "0")).join("");
-      try{ localStorage.setItem("cet4-device-id", raw); }catch(e){}
-    }
-  }
-  return raw;
-}
-function deviceCode(){
-  const h = deviceRaw().slice(0, 10).toUpperCase();
-  return h.slice(0, 5) + "-" + h.slice(5);
+/* 浏览器指纹：只取「同一台设备上不会变」的字段。
+   屏幕宽高排序后取 min/max，横竖屏切换不影响；时区、语言、核数都是稳定的。
+   刻意不用 canvas / 字体探测（iOS 上会随版本更新漂移），也不用
+   devicePixelRatio —— 浏览器缩放会改它，桌面端按一次 Ctrl+加号设备码就变了。 */
+function fpRaw(){
+  const n = navigator, s = screen;
+  const w = Math.min(s.width || 0, s.height || 0);
+  const h = Math.max(s.width || 0, s.height || 0);
+  let tz = "";
+  try{ tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; }catch(e){}
+  return [
+    n.userAgent || "",
+    n.platform || "",
+    n.language || "",
+    (n.languages || []).join(","),
+    tz,
+    w + "x" + h,
+    s.colorDepth || 0,
+    n.hardwareConcurrency || 0,
+    n.maxTouchPoints || 0
+  ].join("|");
 }
 
-/* 校验已存的激活码：设备码要对得上，签名要验得过 */
-async function licenseOK(){
-  let rec = null;
-  try{ rec = JSON.parse(localStorage.getItem(LIC_LS) || "null"); }catch(e){}
-  if(!rec || !rec.dev || !rec.code) return false;
-  if(rec.dev !== deviceCode()) return false;
+/* crypto.subtle 只在 https / localhost 下可用；file:// 直接打开时退回同步哈希 */
+function syncHash(str){
+  let h1 = 0x811c9dc5, h2 = 0x01000193;
+  for(let i=0;i<str.length;i++){
+    const c = str.charCodeAt(i);
+    h1 = ((h1 ^ c) * 16777619) >>> 0;
+    h2 = ((h2 + c * (i + 1)) >>> 0);
+    h2 = ((h2 ^ (h2 >>> 13)) * 2654435761) >>> 0;
+  }
+  return h1.toString(16).padStart(8, "0") + h2.toString(16).padStart(8, "0");
+}
+
+/* 设备码算一次就缓存，后面 deviceCode() 同步取 */
+let _devCode = "";
+async function ensureDeviceCode(){
+  if(_devCode) return _devCode;
+  let hex = "", native = "";
+  try{ if(window.Native && Native.deviceId) native = String(Native.deviceId() || ""); }catch(e){}
+  if(native){
+    hex = native.slice(0, 10).toUpperCase();          // APK：保持原样，别动
+  }else{
+    const raw = fpRaw();
+    try{
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
+      hex = Array.from(new Uint8Array(buf))
+        .map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 10).toUpperCase();
+    }catch(e){
+      hex = syncHash(raw).slice(0, 10).toUpperCase();
+    }
+  }
+  _devCode = hex.slice(0, 5) + "-" + hex.slice(5);
+  return _devCode;
+}
+function deviceCode(){ return _devCode; }
+
+/* 今天，YYYYMMDD 的整数形式，和限期码里的到期日直接比大小 */
+function todayNum(){
+  const d = new Date();
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+function fmtExp(n){
+  n = String(n || "");
+  return n.length === 8 ? n.slice(0, 4) + "-" + n.slice(4, 6) + "-" + n.slice(6) : "";
+}
+
+/* 校验一个激活码对某设备码是否有效。
+   返回 { ok, reason, exp }，reason 是 expired / bad / empty，方便界面给不同文案。
+   先验签再判过期 —— 反过来的话，随便编一个带过期日的假码也会被说成「已过期」，
+   使用者就会去找作者续期，而不是意识到码本身是错的。 */
+async function verifyCode(dev, code){
+  const raw = String(code || "").replace(/\s+/g, "");
+  const m = raw.match(/^(\d{8})\.(.+)$/);
+  const exp = m ? parseInt(m[1], 10) : 0;
+  const sig = m ? m[2] : raw;
+  if(!sig) return { ok:false, reason:"empty", exp:0 };
+  const msg = m ? dev + "|" + m[1] : dev;
+  let ok = false;
   try{
     const key = await crypto.subtle.importKey(
       "spki", b64uToBytes(PUB_KEY_B64),
       { name:"ECDSA", namedCurve:"P-256" }, false, ["verify"]);
-    return await crypto.subtle.verify(
+    ok = await crypto.subtle.verify(
       { name:"ECDSA", hash:"SHA-256" }, key,
-      b64uToBytes(rec.code), new TextEncoder().encode(rec.dev));
-  }catch(e){ return false; }
+      b64uToBytes(sig), new TextEncoder().encode(msg));
+  }catch(e){ ok = false; }
+  if(!ok) return { ok:false, reason:"bad", exp:exp };
+  if(exp && todayNum() > exp) return { ok:false, reason:"expired", exp:exp };
+  return { ok:true, exp:exp };
+}
+
+/* 校验已存的激活码：设备码要对得上，签名要验得过，限期码还没过期 */
+async function licenseOK(){
+  let rec = null;
+  try{ rec = JSON.parse(localStorage.getItem(LIC_LS) || "null"); }catch(e){}
+  if(!rec || !rec.dev || !rec.code) return { ok:false, reason:"none", exp:0 };
+  if(rec.dev !== deviceCode()) return { ok:false, reason:"device", exp:0 };
+  const r = await verifyCode(rec.dev, rec.code);
+  // 过期的记录留着没用，清掉，免得每次启动都先闪一下「校验中」
+  if(!r.ok && r.reason === "expired"){
+    try{ localStorage.removeItem(LIC_LS); }catch(e){}
+  }
+  return r;
+}
+
+/* "我的"页那句授权说明：限期码写到期日，永久码写「永久有效」 */
+function licText(){
+  let rec = null;
+  try{ rec = JSON.parse(localStorage.getItem(LIC_LS) || "null"); }catch(e){}
+  if(!rec || !rec.dev) return "未激活";
+  return rec.exp ? "有效期至 " + fmtExp(rec.exp) : "永久有效";
 }
 
 /* ---------- 校验中 ---------- */
@@ -6389,19 +6475,24 @@ function lockUnlock(){
   setTimeout(() => { l.hidden = true; }, 340);
 }
 
-/* ---------- 激活面板 ---------- */
-function renderActivation(){
+/* ---------- 激活面板 ----------
+   reason 来自 licenseOK / verifyCode：expired 时换个说法，并带上到期日，
+   否则使用者不知道是「没激活」还是「过期了」。 */
+function renderActivation(reason, exp){
   const body = $("#lockBody"); if(!body) return;
   body.dataset.mode = "act";
+  const expired = reason === "expired";
   body.innerHTML =
-      '<div class="lock-title">激活此设备</div>'
-    + '<div class="lock-sub">把下面的设备码发给作者，换一个激活码</div>'
+      '<div class="lock-title">'+(expired ? "激活已过期" : "激活此设备")+'</div>'
+    + '<div class="lock-sub">'+(expired
+        ? '上次的激活码有效期到 '+esc(fmtExp(exp))+'，请把下面的设备码发给作者续期'
+        : '把下面的设备码发给作者，换一个激活码')+'</div>'
     + '<div class="act-device">'+esc(deviceCode())+'</div>'
     + '<button class="btn sm act-copy" id="actCopy">复制设备码</button>'
     + '<textarea class="act-input" id="actInput" rows="3" placeholder="粘贴激活码" spellcheck="false" autocomplete="off"></textarea>'
     + '<div class="lock-err" id="actErr"></div>'
     + '<button class="btn primary act-go" id="actGo">激活</button>'
-    + '<div class="act-tip">激活码只对这一台设备有效，换手机需要重新申请。</div>';
+    + '<div class="act-tip">激活码只对这一台设备有效，换设备或换浏览器需要重新申请。</div>';
 
   $("#actCopy").addEventListener("click", () => {
     const code = deviceCode();
@@ -6429,40 +6520,42 @@ async function doActivate(){
   const code = inp.value.replace(/[\s\r\n]/g, "");
   if(!code){ if(err) err.textContent = "先粘贴激活码"; return; }
   if(err) err.textContent = "";
+  await ensureDeviceCode();
   const dev = deviceCode();
-  let ok = false;
-  try{
-    const key = await crypto.subtle.importKey(
-      "spki", b64uToBytes(PUB_KEY_B64),
-      { name:"ECDSA", namedCurve:"P-256" }, false, ["verify"]);
-    ok = await crypto.subtle.verify(
-      { name:"ECDSA", hash:"SHA-256" }, key,
-      b64uToBytes(code), new TextEncoder().encode(dev));
-  }catch(e){ ok = false; }
+  const r = await verifyCode(dev, code);
 
-  if(!ok){
-    if(err) err.textContent = "激活码无效，或不是这台设备的";
+  if(!r.ok){
+    if(err) err.textContent = r.reason === "expired"
+      ? "这个激活码已经过期了，找作者重新要一个"
+      : "激活码无效，或不是这台设备的";
     if(l){ l.classList.remove("shake"); void l.offsetWidth; l.classList.add("shake"); }
     try{ if(navigator.vibrate) navigator.vibrate([12, 40, 12]); }catch(e2){}
     return;
   }
-  try{ localStorage.setItem(LIC_LS, JSON.stringify({ dev: dev, code: code, at: Date.now() })); }catch(e){}
-  toast("激活成功");
+  try{
+    localStorage.setItem(LIC_LS, JSON.stringify({
+      dev: dev, code: code, at: Date.now(), exp: r.exp || 0
+    }));
+  }catch(e){}
+  toast(r.exp ? "激活成功，有效期至 " + fmtExp(r.exp) : "激活成功");
   lockUnlock();
 }
 
 /* ---------- 闸门初始化 ---------- */
-function initGate(){
+async function initGate(){
   const l = $("#lock");
   if(!l) return;
-  if(WEB_FREE){ lockUnlock(); return; }   // Web 版：不进闸门
   l.hidden = false;
   document.body.classList.add("lock-on");
+  // 设备码是异步算出来的（指纹要过一遍 SHA-256），先等它，再决定进哪一步。
+  await ensureDeviceCode();
+  render();   // 启动序列里那次 render 时设备码还是空的，"我的"页要重画一遍
   // 没存过激活码 → 直接进激活面板；存过 → 先显示「校验中」，验签过了才放行，
   // 防止伪造/换机的记录直接混进去。
   if(!localStorage.getItem(LIC_LS)){ renderActivation(); return; }
   renderChecking();
-  licenseOK().then(ok => { if(ok) lockUnlock(); else renderActivation(); });
+  const r = await licenseOK();
+  if(r.ok) lockUnlock(); else renderActivation(r.reason, r.exp);
 }
 
 /* ---------- 开屏封面 ---------- */
