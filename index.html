@@ -950,6 +950,47 @@
   .me-danger{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .me-danger .tip{font-size:12.5px;color:var(--muted);line-height:1.6}
 
+  /* ---------- 艾宾浩斯复习面板 ---------- */
+  .eb-hero{
+    display:flex;align-items:flex-end;gap:14px;margin-bottom:14px;
+  }
+  .eb-hero .big{
+    font-size:42px;font-weight:800;line-height:1;color:var(--brand);
+    font-variant-numeric:tabular-nums;letter-spacing:-1px;
+  }
+  .eb-hero .lbl{font-size:13px;color:var(--muted);padding-bottom:4px;line-height:1.5}
+  .eb-hero .lbl b{color:var(--text);font-weight:700}
+  .eb-act{
+    margin-left:auto;flex:none;
+    padding:10px 22px;font-size:14px;font-weight:700;border-radius:99px;
+    border:1px solid rgba(67,128,143,.45);background:var(--brand-soft);color:var(--brand);
+    cursor:pointer;transition:all .18s;
+    box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 2px 8px rgba(67,128,143,.12);
+  }
+  .eb-act:active{transform:scale(.95)}
+  .eb-act.disabled{opacity:.35;pointer-events:none}
+  .eb-act:not(.disabled):hover{background:var(--brand);color:#fff}
+  .eb-tip{
+    font-size:13px;line-height:1.7;color:var(--muted);
+    background:var(--brand-soft);border-radius:14px;padding:12px 14px;
+    border-left:3px solid var(--brand);
+  }
+  .eb-tip b{color:var(--brand);font-weight:600}
+  .eb-week{display:flex;gap:6px;margin-top:14px;align-items:flex-end}
+  .eb-day{
+    flex:1;text-align:center;padding:8px 2px 6px;border-radius:10px;
+    background:rgba(67,128,143,.05);min-width:0;
+  }
+  .eb-day.today{background:var(--brand-soft)}
+  .eb-day .dn{font-size:10.5px;color:var(--muted);font-weight:600}
+  .eb-day.today .dn{color:var(--brand)}
+  .eb-day .dc{font-size:18px;font-weight:800;color:var(--text);line-height:1.3;font-variant-numeric:tabular-nums}
+  .eb-day .dc.zero{color:#c4d4d6}
+  .eb-day .db{height:4px;border-radius:99px;margin-top:4px;background:rgba(67,128,143,.10);overflow:hidden}
+  .eb-day .db i{display:block;height:100%;border-radius:99px;background:linear-gradient(180deg,#93bfc8,#43808f)}
+  .eb-day.today .db i{background:linear-gradient(180deg,#74a8b4,#43808f)}
+  .eb-empty{font-size:13px;color:var(--muted);line-height:1.7;padding:10px 2px;text-align:center}
+
   .toast{
     position:fixed;left:50%;bottom:calc(104px + var(--nav-lift,0px) + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;pointer-events:none;
     background:rgba(28,44,46,.80);
@@ -5117,19 +5158,77 @@ const BANK_LS = "cet4-bank-v1";
 const LEVEL = {1:"不认识",3:"已掌握"};
 /* 版本号：显示在「我的」页底部。由 release.sh --bump 与 AndroidManifest 同步 +1，
    手动改容易忘，改版本走 release.sh。 */
-const APP_VER = "0.6.23";
+const APP_VER = "0.6.24";
 
 let bankId = "cet4";
 let LS = BANKS[0].ls;
 let W = [], BY_WORD = new Map(), LETTERS = [];
-let store = { st:{}, wr:{}, seen:{}, days:{} };
+let store = { st:{}, wr:{}, seen:{}, days:{}, eb:{} };
+
+/* ==================== 艾宾浩斯遗忘曲线调度 ====================
+   间隔序列（分钟）：5 → 30 → 720(12h) → 1440(1d) → 2880(2d) → 5760(4d)
+                     → 10080(7d) → 21600(15d) → 43200(30d)
+   每学一个新词就进调度；评分时按结果推进或回退：
+     mark(word, 3)「已掌握」→ 进入下一个间隔（遗忘曲线认为你记住了，拉长下次复习时间）
+     mark(word, 1)「不认识」→ 回到第一阶段（5 分钟后重新复习）
+   store.eb[word] = { s: stage索引, t: 下次复习的毫秒时间戳 }
+   t = 0 表示已完成全部阶段（不再需要复习） */
+const EB_IV = [5, 30, 720, 1440, 2880, 5760, 10080, 21600, 43200];
+function ebNow(){ return Date.now(); }
+function ebNextAt(stage){ return ebNow() + EB_IV[stage] * 60000; }
+
+function ebSchedule(word, grade){
+  store.eb = store.eb || {};
+  const cur = store.eb[word];
+  if(grade === 3){
+    /* 答对了：推进到下一阶段 */
+    const s = cur ? Math.min(cur.s + 1, EB_IV.length - 1) : 0;
+    if(s >= EB_IV.length - 1){
+      /* 跑完全部阶段：不再需要复习 */
+      store.eb[word] = { s, t: 0 };
+    } else {
+      store.eb[word] = { s, t: ebNextAt(s) };
+    }
+  } else if(grade === 1){
+    /* 答错了：回到第一阶段，很快再复习 */
+    store.eb[word] = { s: 0, t: ebNextAt(0) };
+  }
+}
+function ebRemove(word){ store.eb = store.eb || {}; delete store.eb[word]; }
+/* 到期需要复习的词：t > 0 且 t <= now */
+function ebDueWords(){
+  const now = ebNow();
+  return W.filter(x => { const e = store.eb[x.w]; return e && e.t > 0 && e.t <= now; });
+}
+/* 今日预计还会到期的词（包含已到期 + 今天剩余时间内到期） */
+function ebDueToday(){
+  const end = ebNow() + (24 - new Date().getHours()) * 3600000;
+  return W.filter(x => { const e = store.eb[x.w]; return e && e.t > 0 && e.t <= end; });
+}
+/* 未来 7 天的复习计划：返回 [{date, count}] */
+function ebWeekPlan(){
+  const now = ebNow();
+  const days = [];
+  for(let i = 0; i < 7; i++){
+    const start = now + i * 86400000;
+    const d = new Date(start);
+    const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const dayEnd = dayStart + 86400000;
+    const count = W.filter(x => {
+      const e = store.eb[x.w];
+      return e && e.t > 0 && e.t >= dayStart && e.t < dayEnd;
+    }).length;
+    days.push({ date: dayStart, count });
+  }
+  return days;
+}
 
 function load(){
   try{
     const raw = localStorage.getItem(LS);
     if(raw){ const o = JSON.parse(raw); store = Object.assign(store, o); }
   }catch(e){}
-  store.st = store.st || {}; store.wr = store.wr || {}; store.seen = store.seen || {}; store.days = store.days || {};
+  store.st = store.st || {}; store.wr = store.wr || {}; store.seen = store.seen || {}; store.days = store.days || {}; store.eb = store.eb || {};
   /* 一次性迁移：等级已从三档（不认识/模糊/已掌握）收敛为两档，
      旧的「模糊」(2) 统一并入「不认识」(1)，否则这批词会卡在没有按钮可改的中间态。 */
   let migrated = false;
@@ -5145,10 +5244,12 @@ function touchDay(){ const k = todayKey(); store.days[k] = (store.days[k]||0) + 
 function mark(word, lv){
   store.st[word] = lv;
   store.seen[word] = (store.seen[word]||0) + 1;
-  touchDay(); save(); paintHeader();
+  touchDay();
+  ebSchedule(word, lv);
+  save(); paintHeader();
 }
 function markWrong(word){ store.wr[word] = (store.wr[word]||0) + 1; save(); }
-function unmark(word){ delete store.st[word]; save(); paintHeader(); }
+function unmark(word){ delete store.st[word]; ebRemove(word); save(); paintHeader(); }
 
 /* ==================== 数据索引 ==================== */
 const buildIndex = list => list.map(a => ({ w:a[0], ph:a[1], pos:a[2], cn:a[3], tag:a[4], tp:a[5]||"", eg:a[6]||"", egc:a[7]||"", l:a[0][0].toUpperCase() }));
@@ -5844,9 +5945,10 @@ function scopeWords(scope){
   if(scope==="NEW") return W.filter(x=>lv(x.w)===0);
   if(scope==="LEARNED") return W.filter(x=>lv(x.w)>=1);
   if(scope==="WRONG") return W.filter(x=>isWrong(x.w));
+  if(scope==="DUE") return ebDueWords();
   return W.slice();
 }
-const SCOPE_LABEL = { "重点":"重点词", NEW:"未学词", LEARNED:"已学词", WRONG:"错词本" };
+const SCOPE_LABEL = { "重点":"重点词", NEW:"未学词", LEARNED:"已学词", WRONG:"错词本", DUE:"待复习" };
 
 function renderCard(v){
   const pool = scopeWords(cardState.scope);
@@ -6179,6 +6281,73 @@ function renderMe(v){
     +   '<div class="stat bad"><div class="n">'+c.wrong+'</div><div class="l">错词本</div></div>'
     + '</div>';
 
+  /* ---------- 艾宾浩斯遗忘曲线复习面板 ---------- */
+  const ebDue = ebDueWords();
+  const ebDueTodayList = ebDueToday();
+  const ebPlan = ebWeekPlan();
+  const ebTracked = W.filter(x => store.eb[x.w]).length;
+  const ebDone = W.filter(x => { const e = store.eb[x.w]; return e && e.t === 0; }).length;
+  const todayStr = todayKey();
+
+  /* 复习建议：根据当前状态给出智能提示 */
+  let ebAdvice = "";
+  if(ebTracked === 0){
+    ebAdvice = '还没有词进入复习计划。去<b>闪卡</b>或<b>测验</b>学几个新词，系统会自动按艾宾浩斯曲线安排下次复习时间。';
+  } else if(ebDue.length > 0){
+    if(ebDue.length >= 20){
+      ebAdvice = '今天有 <b>'+ebDue.length+'</b> 个词到期需要复习，量比较大。建议优先用闪卡的「待复习」范围集中过一遍，答错的词会重新进入短期复习。';
+    } else if(ebDue.length >= 5){
+      ebAdvice = '今天有 <b>'+ebDue.length+'</b> 个词到期。花几分钟用闪卡过一遍就行，趁记忆还在的时候复习效率最高。';
+    } else {
+      ebAdvice = '今天只有 <b>'+ebDue.length+'</b> 个词到期，很快就能复习完。保持节奏很好！';
+    }
+  } else {
+    /* 没有到期词 */
+    if(ebDone > 0 && ebDone === ebTracked){
+      ebAdvice = '所有进入复习计划的词都已跑完全部阶段，太厉害了！继续学新词来扩充复习池吧。';
+    } else if(ebTracked > 0){
+      const nextDue = ebPlan.find(d => d.count > 0);
+      if(nextDue){
+        const dd = new Date(nextDue.date);
+        const today = new Date();
+        const diffDays = Math.round((dd.setHours(0,0,0,0) - today.setHours(0,0,0,0)) / 86400000);
+        if(diffDays === 1) ebAdvice = '今天的复习已全部完成！明天有 <b>'+nextDue.count+'</b> 个词到期。可以趁现在多学几个新词。';
+        else ebAdvice = '今天的复习已全部完成！下次复习在 <b>'+diffDays+'</b> 天后（'+nextDue.count+' 词）。可以趁现在多学几个新词。';
+      } else {
+        ebAdvice = '当前没有需要复习的词。去闪卡或测验学一些新词吧，系统会自动安排复习计划。';
+      }
+    }
+  }
+
+  html += '</div>' /* 关闭统计 panel */
+    + '<div class="panel">'
+    + '<div class="sect" style="margin-top:0">艾宾浩斯遗忘曲线</div>'
+    + '<div class="eb-hero">'
+    +   '<div class="big">'+ebDue.length+'</div>'
+    +   '<div class="lbl">今日待复习<br><b>'+ebTracked+'</b> 词在复习计划中 · <b>'+ebDone+'</b> 词已完成</div>'
+    +   '<button class="eb-act'+(ebDue.length?'':' disabled')+'" id="ebGo">'
+    +     (ebDue.length ? '开始复习' : '暂无待复习')
+    +   '</button>'
+    + '</div>'
+    + '<div class="eb-tip">'+ebAdvice+'</div>'
+    + '<div class="eb-week">'
+    + ebPlan.map((d, i) => {
+        const dd = new Date(d.date);
+        const isToday = i === 0;
+        const dn = isToday ? '今天' : (dd.getMonth()+1)+'/'+dd.getDate();
+        const mc = Math.max(d.count, ebDue.length); /* 今日用实际到期数 */
+        const maxC = Math.max(ebPlan.map(x=>x.count).reduce((a,b)=>Math.max(a,b),0), ebDue.length, 1);
+        const barW = isToday ? ebDue.length / maxC * 100 : d.count / maxC * 100;
+        return '<div class="eb-day'+(isToday?' today':'')+'">'
+          + '<div class="dn">'+dn+'</div>'
+          + '<div class="dc'+(isToday && ebDue.length===0?' zero':'')+(isToday?'':(d.count===0?' zero':''))+'">'+(isToday?ebDue.length:d.count)+'</div>'
+          + '<div class="db"><i style="width:'+barW.toFixed(0)+'%"></i></div>'
+          + '</div>';
+      }).join("")
+    + '</div>'
+    + '</div>'
+    + '<div class="panel">'; /* 重新打开下一个 panel */
+
   html += '<div class="sect">标签进度（已掌握 / 该标签词数）</div><div class="lettbars tags">'
     + TAGS.map(t => { const o = byTag(t); const p = o.n?o.m/o.n*100:0;
         return '<div class="lb"><span class="k"><span class="tag '+tagCls(t)+'">'+t+'</span></span>'
@@ -6234,12 +6403,22 @@ function renderMe(v){
     location.reload();
   });
 
+  const ebGo = $("#ebGo");
+  if(ebGo) ebGo.addEventListener("click", () => {
+    if(ebDueWords().length === 0){ toast("当前没有待复习的词"); return; }
+    cardState.scope = "DUE";
+    cardState.queue = shuffle(scopeWords("DUE"));
+    cardState.i = 0; cardState.flipped = false;
+    go("card");
+    toast("开始复习：" + cardState.queue.length + " 词到期");
+  });
+
   $("#exp").addEventListener("click", () => download("cet4-progress-" + todayKey() + ".json", JSON.stringify(store, null, 2), "application/json"));
   $("#impbtn").addEventListener("click", () => $("#impfile").click());
   $("#impfile").addEventListener("change", e => {
     const f = e.target.files[0]; if(!f) return;
     const r = new FileReader();
-    r.onload = () => { try{ const o = JSON.parse(r.result); store = Object.assign({st:{},wr:{},seen:{},days:{}}, o); save(); paintHeader(); render(); toast("进度已导入"); }catch(err){ toast("文件格式不正确"); } };
+    r.onload = () => { try{ const o = JSON.parse(r.result); store = Object.assign({st:{},wr:{},seen:{},days:{},eb:{}}, o); save(); paintHeader(); render(); toast("进度已导入"); }catch(err){ toast("文件格式不正确"); } };
     r.readAsText(f);
   });
   $("#expcsv").addEventListener("click", () => {
@@ -6275,7 +6454,7 @@ document.addEventListener("keydown", e => {
 
 function resetAll(){
   if(!confirm("确定重置全部学习进度？词库本身不受影响。")) return;
-  store = { st:{}, wr:{}, seen:{}, days:{} };
+  store = { st:{}, wr:{}, seen:{}, days:{}, eb:{} };
   save(); paintHeader(); render(); toast("学习进度已重置");
 }
 
