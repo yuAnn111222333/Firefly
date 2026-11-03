@@ -5158,7 +5158,7 @@ const BANK_LS = "cet4-bank-v1";
 const LEVEL = {1:"不认识",3:"已掌握"};
 /* 版本号：显示在「我的」页底部。由 release.sh --bump 与 AndroidManifest 同步 +1，
    手动改容易忘，改版本走 release.sh。 */
-const APP_VER = "0.6.24";
+const APP_VER = "0.6.25";
 
 let bankId = "cet4";
 let LS = BANKS[0].ls;
@@ -5180,9 +5180,11 @@ function ebNextAt(stage){ return ebNow() + EB_IV[stage] * 60000; }
 function ebSchedule(word, grade){
   store.eb = store.eb || {};
   const cur = store.eb[word];
+  /* 防御：脏数据（s/t 为 NaN 或类型异常）一律当作新词处理 */
+  const curS = (cur && typeof cur.s === "number" && !isNaN(cur.s) && cur.s >= 0) ? cur.s : -1;
   if(grade === 3){
     /* 答对了：推进到下一阶段 */
-    const s = cur ? Math.min(cur.s + 1, EB_IV.length - 1) : 0;
+    const s = Math.min(curS + 1, EB_IV.length - 1);
     if(s >= EB_IV.length - 1){
       /* 跑完全部阶段：不再需要复习 */
       store.eb[word] = { s, t: 0 };
@@ -5195,28 +5197,33 @@ function ebSchedule(word, grade){
   }
 }
 function ebRemove(word){ store.eb = store.eb || {}; delete store.eb[word]; }
+
+/* 当天 00:00 的时间戳 */
+function ebDayStart(ts){
+  const d = new Date(ts);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
 /* 到期需要复习的词：t > 0 且 t <= now */
 function ebDueWords(){
   const now = ebNow();
-  return W.filter(x => { const e = store.eb[x.w]; return e && e.t > 0 && e.t <= now; });
+  return W.filter(x => { const e = store.eb[x.w]; return e && typeof e.t === "number" && e.t > 0 && e.t <= now; });
 }
-/* 今日预计还会到期的词（包含已到期 + 今天剩余时间内到期） */
+/* 今日到期的词：当天 00:00 ~ 次日 00:00 区间内 t > 0 的词 */
 function ebDueToday(){
-  const end = ebNow() + (24 - new Date().getHours()) * 3600000;
-  return W.filter(x => { const e = store.eb[x.w]; return e && e.t > 0 && e.t <= end; });
+  const dayStart = ebDayStart(ebNow());
+  const dayEnd = dayStart + 86400000;
+  return W.filter(x => { const e = store.eb[x.w]; return e && typeof e.t === "number" && e.t > 0 && e.t >= dayStart && e.t < dayEnd; });
 }
-/* 未来 7 天的复习计划：返回 [{date, count}] */
+/* 未来 7 天的复习计划：返回 [{date, count}]，date 为当天 00:00 时间戳 */
 function ebWeekPlan(){
-  const now = ebNow();
+  const todayStart = ebDayStart(ebNow());
   const days = [];
   for(let i = 0; i < 7; i++){
-    const start = now + i * 86400000;
-    const d = new Date(start);
-    const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const dayStart = todayStart + i * 86400000;
     const dayEnd = dayStart + 86400000;
     const count = W.filter(x => {
       const e = store.eb[x.w];
-      return e && e.t > 0 && e.t >= dayStart && e.t < dayEnd;
+      return e && typeof e.t === "number" && e.t > 0 && e.t >= dayStart && e.t < dayEnd;
     }).length;
     days.push({ date: dayStart, count });
   }
@@ -5279,7 +5286,7 @@ function applyBank(id){
   W = buildIndex(b.words);
   BY_WORD = new Map(W.map(x => [x.w, x]));
   LETTERS = [...new Set(W.map(x => x.l))].sort();
-  store = { st:{}, wr:{}, seen:{}, days:{} };
+  store = { st:{}, wr:{}, seen:{}, days:{}, eb:{} };
   load();
   libState.q=""; libState.tag="ALL"; libState.tp="ALL"; libState.status="NEW"; libState.shown=150; libList=[];
   cardState.scope="NEW"; cardState.queue=[]; cardState.i=0; cardState.flipped=false; cardState.queueScope=null;
@@ -6308,10 +6315,11 @@ function renderMe(v){
     } else if(ebTracked > 0){
       const nextDue = ebPlan.find(d => d.count > 0);
       if(nextDue){
-        const dd = new Date(nextDue.date);
-        const today = new Date();
-        const diffDays = Math.round((dd.setHours(0,0,0,0) - today.setHours(0,0,0,0)) / 86400000);
-        if(diffDays === 1) ebAdvice = '今天的复习已全部完成！明天有 <b>'+nextDue.count+'</b> 个词到期。可以趁现在多学几个新词。';
+        /* nextDue.date 已经是当天 00:00 时间戳，直接算天数差即可 */
+        const todayStart = ebDayStart(ebNow());
+        const diffDays = Math.round((nextDue.date - todayStart) / 86400000);
+        if(diffDays <= 0) ebAdvice = '今天的复习已全部完成！不过还有词在排队，继续学新词扩充复习池吧。';
+        else if(diffDays === 1) ebAdvice = '今天的复习已全部完成！明天有 <b>'+nextDue.count+'</b> 个词到期。可以趁现在多学几个新词。';
         else ebAdvice = '今天的复习已全部完成！下次复习在 <b>'+diffDays+'</b> 天后（'+nextDue.count+' 词）。可以趁现在多学几个新词。';
       } else {
         ebAdvice = '当前没有需要复习的词。去闪卡或测验学一些新词吧，系统会自动安排复习计划。';
@@ -6335,12 +6343,15 @@ function renderMe(v){
         const dd = new Date(d.date);
         const isToday = i === 0;
         const dn = isToday ? '今天' : (dd.getMonth()+1)+'/'+dd.getDate();
-        const mc = Math.max(d.count, ebDue.length); /* 今日用实际到期数 */
-        const maxC = Math.max(ebPlan.map(x=>x.count).reduce((a,b)=>Math.max(a,b),0), ebDue.length, 1);
-        const barW = isToday ? ebDue.length / maxC * 100 : d.count / maxC * 100;
+        /* 今天用 ebDueTodayList 的长度（当天区间内所有到期词），
+           和柱状图区间口径一致；其他天用 ebPlan 的 count */
+        const todayCount = ebDueTodayList.length;
+        const displayCount = isToday ? todayCount : d.count;
+        const maxC = Math.max(ebPlan.map(x=>x.count).reduce((a,b)=>Math.max(a,b),0), todayCount, 1);
+        const barW = displayCount / maxC * 100;
         return '<div class="eb-day'+(isToday?' today':'')+'">'
           + '<div class="dn">'+dn+'</div>'
-          + '<div class="dc'+(isToday && ebDue.length===0?' zero':'')+(isToday?'':(d.count===0?' zero':''))+'">'+(isToday?ebDue.length:d.count)+'</div>'
+          + '<div class="dc'+(displayCount===0?' zero':'')+'">'+displayCount+'</div>'
           + '<div class="db"><i style="width:'+barW.toFixed(0)+'%"></i></div>'
           + '</div>';
       }).join("")
