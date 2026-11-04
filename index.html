@@ -740,14 +740,13 @@
      上缘靠相邻选择器（前一行有底色就抹平）；下缘得看「后面」有没有底色，
      只能用 :has()——不支持时退化成圆角相切，能看，只是不好看。
      抹平圆角的同时要把那条 1px 细线放回来：底色块是平涂的，
-     没有线的话一整段同色底色里的几行会糊成一片，看不出分行。 */
-  .row.st1 + .row.st1, .row.st1 + .row.st3,
-  .row.st3 + .row.st1, .row.st3 + .row.st3{
+     没有线的话一整段同色底色里的几行会糊成一片，看不出分行。
+     有红/绿两档，逐个写要 4 种组合，用 :is() 收成两条更不容易漏。 */
+  .row:is(.st1,.st3) + .row:is(.st1,.st3){
     border-top-left-radius:0;border-top-right-radius:0;
     border-top-color:rgba(22,48,52,.055);
   }
-  .row.st1:has(+ .row.st1), .row.st1:has(+ .row.st3),
-  .row.st3:has(+ .row.st1), .row.st3:has(+ .row.st3){border-bottom-left-radius:0;border-bottom-right-radius:0}
+  .row:is(.st1,.st3):has(+ .row:is(.st1,.st3)){border-bottom-left-radius:0;border-bottom-right-radius:0}
   .empty{padding:40px 10px;text-align:center;color:var(--muted);font-size:14px}
   .empty .big{font-size:34px;margin-bottom:8px}
 
@@ -755,7 +754,11 @@
   .deck{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
   .fc{perspective:1400px;margin:6px 0 14px}
   /* 翻面用带回弹的曲线：转到 180° 会稍微冲过头再退回来，卡片像一块被弹开的果冻 */
-  .fc-inner{position:relative;width:100%;min-height:270px;transition:transform .52s cubic-bezier(.34,1.28,.48,1);transform-style:preserve-3d;cursor:pointer}
+  /* 卡面高度要装得下「释义 + 例句 + 译文 + 单词行」。
+     按真实词条量过行数：390 屏最高 281px，360 屏（内容宽 276）会给到 328px ——
+     取 330 兜住最坏的一条（opportunistic：释义两行 + 例句四行 + 译文两行）。
+     原来 270 只够放释义和单词，塞进例句后长释义会顶出圆角外。 */
+  .fc-inner{position:relative;width:100%;min-height:330px;transition:transform .52s cubic-bezier(.34,1.28,.48,1);transform-style:preserve-3d;cursor:pointer}
   .fc.flip .fc-inner{transform:rotateY(180deg)}
   /* 卡面不用 backdrop-filter：它会新建一层，和 preserve-3d / backface-visibility 打架，
      翻面时容易闪。改用「半透明 + 强内侧高光 + 大投影」把玻璃感画出来。 */
@@ -773,8 +776,26 @@
   .fc-word{font-size:40px;font-weight:800;letter-spacing:.5px;word-break:break-word}
   .fc-ph{font-size:15px;color:var(--muted)}
   .fc-pos{font-size:12px;font-weight:600;color:var(--brand);background:var(--brand-soft);padding:2px 10px;border-radius:99px}
-  .fc-cn{font-size:22px;font-weight:600;line-height:1.7}
+  .fc-cn{font-size:22px;font-weight:600;line-height:1.7;max-width:26em}
+  /* 卡背的例句：夹在释义和单词行之间。
+     英文斜体、目标词正体加粗，译文小一号、不斜体、略淡 —— 跟测验题面那套
+     （.qeg/.qegcn）保持同一套语汇，只是在卡面上缩了一号，不然会把释义挤下去。
+     三者都做行数封顶：卡面是绝对定位的固定高度，超出会漏到圆角外面。
+     320px 宽的极小屏（内容宽约 236）只有这里会真的截断，正常手机截不到。 */
+  .fc-egbox{display:flex;flex-direction:column;gap:3px;max-width:30em;margin:0 auto}
+  .fc-eg{
+    font-size:13.5px;line-height:1.6;color:var(--muted);font-style:italic;
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;
+  }
+  .fc-eg b{font-style:normal;font-weight:700;color:var(--text)}
+  .fc-egcn{
+    font-size:12.5px;line-height:1.65;color:var(--text);opacity:.72;
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;
+  }
+  /* 卡背的单词行：既是「答案」，也是词族的入口（.fc-wd 全站点开词族） */
+  .fc-wd{font-size:19px;font-weight:700;color:var(--text);letter-spacing:.2px}
   .fc-hint{font-size:12.5px;color:var(--muted);margin-top:4px}
+  /* 两个评分按钮并排：一个「不认识」一个「认识」，宽屏各占一半更不容易点错 */
   .fc-acts{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
   .fc-acts .btn{padding:10px 20px;font-size:14px;border-radius:12px}
   .fc-acts .b1:hover{border-color:var(--bad);color:var(--bad)}
@@ -910,6 +931,15 @@
   .explain .verdict{display:block;font-weight:700;margin-bottom:5px;font-size:14px}
   .explain .verdict.ok{color:var(--ok)}
   .explain .verdict.no{color:var(--bad)}
+  /* 答题后的例句：放在释义下面，用一条极淡的线跟上面的「答案」分开。
+     同一句话在三种题型里都会出现 —— 拼写/中译英答完也该看到语境，
+     以前只有英译中的题面才给。 */
+  .explain .ex-eg{
+    margin-top:10px;padding-top:9px;border-top:1px solid rgba(67,128,143,.14);
+    font-size:13.5px;line-height:1.6;color:#4c6367;font-style:italic;
+  }
+  .explain .ex-eg b{font-style:normal;font-weight:700;color:var(--text)}
+  .explain .ex-egcn{margin-top:3px;font-size:12.5px;line-height:1.7;color:#4c6367;opacity:.78}
   @keyframes fade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 
   /* ---------- 统计 ---------- */
@@ -989,7 +1019,6 @@
   .eb-day .db{height:4px;border-radius:99px;margin-top:4px;background:rgba(67,128,143,.10);overflow:hidden}
   .eb-day .db i{display:block;height:100%;border-radius:99px;background:linear-gradient(180deg,#93bfc8,#43808f)}
   .eb-day.today .db i{background:linear-gradient(180deg,#74a8b4,#43808f)}
-  .eb-empty{font-size:13px;color:var(--muted);line-height:1.7;padding:10px 2px;text-align:center}
 
   .toast{
     position:fixed;left:50%;bottom:calc(104px + var(--nav-lift,0px) + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;pointer-events:none;
@@ -1041,6 +1070,14 @@
   .fam-x:active,.fam-back:active{transform:scale(.9)}
   .fam-sub{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.6}
   .fam-sub b{color:var(--brand);font-weight:600}
+  /* 词族浮层里的例句：点开一个词最先想知道「它怎么用」，所以放在释义正下方、
+     派生词列表之前。一条极淡的分割线把它跟上面的音标释义分开。 */
+  .fam-eg{
+    margin-top:11px;padding-top:10px;border-top:1px solid rgba(67,128,143,.12);
+    font-size:13.5px;line-height:1.65;color:var(--muted);font-style:italic;
+  }
+  .fam-eg b{font-style:normal;font-weight:700;color:var(--text)}
+  .fam-egcn{margin-top:3px;font-size:12.5px;line-height:1.7;color:var(--text);opacity:.7}
   .fam-grp{margin-top:14px}
   .fam-pt{font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.6px;margin-bottom:2px}
   .fam-it{
@@ -1059,7 +1096,6 @@
   .fam-empty{font-size:13px;color:var(--muted);padding:12px 2px 2px;line-height:1.7}
   /* 单词本身给个极淡的虚线下划，暗示「这里能点」 */
   .word,.fc-wd{cursor:pointer;border-bottom:1px dashed rgba(67,128,143,.24)}
-  .kbd{font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 6px;background:#fafdfc}
   /* ---------- iPad / 平板（视口 ≥700px）----------
      页面是按 390px 手机排的，iPad Air 5 竖屏 CSS 宽是 820px。不收窄的话词库每行
      近 790px，一行字太长反而难扫读，底部导航胶囊也会被拉成一根长条。收窄居中后
@@ -1076,7 +1112,13 @@
        不会因为固定值在横屏被顶出屏幕。 */
     .fc-word{font-size:52px}
     .fc-cn{font-size:26px}
-    .fc-inner{min-height:clamp(270px,38vh,460px)}
+    /* 卡背多了例句和译文，手机上的 330px 上限在大屏会把三行例句夹住，
+       所以平板这一档跟着视口再抬高：竖屏 1180 时约 519px，横屏 820 时约 360px。
+       例句/单词行也放大一号，否则跟 26px 的释义摆在一起会显得太小。 */
+    .fc-inner{min-height:clamp(340px,44vh,520px)}
+    .fc-eg{font-size:15px}
+    .fc-egcn{font-size:13.5px}
+    .fc-wd{font-size:22px}
     .qtext{font-size:30px}
     .qeg{font-size:17px;max-width:30em}
   }
@@ -1100,10 +1142,9 @@
     /* 词条操作按钮加大到触控尺寸 */
     .sbtn{width:40px;height:40px;border-radius:50%;font-size:15px}
     .rowacts{gap:8px}
-    /* 闪卡评分按钮：一行放下三个，加大触控高度 */
-    .fc-acts{flex-wrap:nowrap;gap:7px}
-    .fc-acts .btn{flex:1 1 0;min-width:0;padding:13px 4px;font-size:13.5px;white-space:nowrap}
-    .fc-acts .kbd{display:none}
+    /* 闪卡评分按钮：两个并排平分一行，加大触控高度 */
+    .fc-acts{flex-wrap:nowrap;gap:8px}
+    .fc-acts .btn{flex:1 1 0;min-width:0;padding:13px 4px;font-size:14px;white-space:nowrap}
     /* 闪卡下方进度长条：移动端略收窄 */
     .fc-prog{margin-top:14px}
     .fc-prog .fp-track{height:16px}
@@ -4177,13 +4218,11 @@ const WORDS = [
 ];
 
 /* ==================== 词库（多库切换） ====================
-   CET4 是内置的 3000 词；CET6 / 雅思 目前只有外壳，
+   CET4（3000 词）与雅思（944 词）都有词表；CET6 目前只有外壳，
    words 留空即可——空库时各页面会显示「待导入」，不会崩。
    每个库用独立的 localStorage key，进度互不干扰。 */
 /* 雅思词库：944 词，三层人工选词 —— 剑桥真题阅读/听力高频（418）+ 7.5 分核心（232）
-   + GRE 精选（294）。每行 [单词, 音标, 词性, 释义, 等级标签, 话题, 例句]，
-   话题为空表示通用词。词表在 android/tools/data/* 雅思词库：944 词，三层人工选词 —— 剑桥真题阅读/听力高频（418）+ 7.5 分核心（232）
-   + GRE 精选（294）。每行 [单词, 音标, 词性, 释义, 等级标签, 话题, 例句]，
+   + GRE 精选（294）。每行 [单词, 音标, 词性, 释义, 等级标签, 话题, 例句, 译文]，
    话题为空表示通用词。词表在 android/tools/data/*.txt，由 build_ielts_v2.py 生成，
    别手改本数组 —— 改了重跑脚本会被覆盖。 */
 const IELTS_WORDS = [
@@ -5158,12 +5197,12 @@ const BANK_LS = "cet4-bank-v1";
 const LEVEL = {1:"不认识",3:"已掌握"};
 /* 版本号：显示在「我的」页底部。由 release.sh --bump 与 AndroidManifest 同步 +1，
    手动改容易忘，改版本走 release.sh。 */
-const APP_VER = "0.6.25";
+const APP_VER = "0.6.28";
 
 let bankId = "cet4";
 let LS = BANKS[0].ls;
 let W = [], BY_WORD = new Map(), LETTERS = [];
-let store = { st:{}, wr:{}, seen:{}, days:{}, eb:{} };
+let store = { st:{}, wr:{}, seen:{}, days:{}, eb:{}, ck:{} };
 
 /* ==================== 艾宾浩斯遗忘曲线调度 ====================
    间隔序列（分钟）：5 → 30 → 720(12h) → 1440(1d) → 2880(2d) → 5760(4d)
@@ -5256,19 +5295,75 @@ function mark(word, lv){
   save(); paintHeader();
 }
 function markWrong(word){ store.wr[word] = (store.wr[word]||0) + 1; save(); }
+/* 错词本「连续答对两次才算真的回来」的记账。
+   以前答对一次就 delete store.wr，刚记住就忘的词第二天又像新词一样出现，
+   等于把「今天记住了」当成「掌握了」。连对计数存在 store.ck[word]，
+   答错 / 评「不认识」都会清零（见 gradeCard 与 answer）。
+   返回 true 表示这次刚好凑满两次、已经把词移出错词本。 */
+function noteRight(word){
+  if(!isWrong(word)){ clearRight(word); return false; }
+  store.ck = store.ck || {};
+  const n = (store.ck[word] || 0) + 1;
+  if(n >= 2){ delete store.wr[word]; clearRight(word); return true; }
+  store.ck[word] = n;
+  return false;
+}
+/* 连对计数清零。单独抽出来是因为「导入了 ck:null 的旧进度」时
+   delete store.ck[word] 会抛 TypeError —— 导入是用户可以做的事，不能假设字段类型。 */
+function clearRight(word){ if(store.ck) delete store.ck[word]; }
 function unmark(word){ delete store.st[word]; ebRemove(word); save(); paintHeader(); }
 
 /* ==================== 数据索引 ==================== */
 const buildIndex = list => list.map(a => ({ w:a[0], ph:a[1], pos:a[2], cn:a[3], tag:a[4], tp:a[5]||"", eg:a[6]||"", egc:a[7]||"", l:a[0][0].toUpperCase() }));
 
-/* 例句里的目标词高亮：句子里出现的是 abandoned / abandoning 这类变形，
-   所以连常见后缀一起认。词本身可能带 - 或 . ，进正则前要转义。 */
-const EG_SUF = "(?:s|es|ed|d|ing|ly|er|est|ies|ied)?";
+/* 例句里的目标词高亮：句子里出现的多半是变形，所以要先枚举词形再匹配。
+   原来的后缀表是 s|es|ed|d|ing|ly|er|est|ies|ied，挂在词尾整体拼 ——
+   accessory→Accessories、accompany→accompanied 都是 y 变 i，ache→aching 是去 e，
+   这类拼法一个都覆盖不到，3944 条里有 126 条的例句整句不亮（用户不知道该看哪个词）。
+   现在的做法是按构词规则把候选词形都列出来，再挑最长的一条匹配。 */
+function egForms(w){
+  const x = String(w).toLowerCase();
+  /* 先列「词根本体」：英式/美式拼法各一份。
+     词库按英式收词，例句多半来自美式语料 —— vapour→vapor、hypothesise→hypothesize、
+     urbanisation→urbanization 这三类不换算，句子就整句不亮。 */
+  const bases = new Set([x]);
+  if(/our$/.test(x)) bases.add(x.slice(0,-3) + "or");
+  if(/isation$/.test(x)) bases.add(x.slice(0,-7) + "ization");
+  else if(/ise$/.test(x)) bases.add(x.slice(0,-3) + "ize");
+
+  /* 再对每个词根套变形。候选都列出来，匹配时挑最长的一条（见 egHTML） */
+  const out = new Set();
+  const add = b => {
+    [b, b+"s", b+"es", b+"ed", b+"d", b+"ing", b+"ly", b+"er", b+"est", b+"ers", b+"ness", b+"ment"]
+      .forEach(f => out.add(f));
+    /* y 结尾：y→ies / ied / ier / iest / ily（accessory→accessories、accompany→accompanied） */
+    if(/y$/.test(b)){
+      const t = b.slice(0,-1);
+      ["ies","ied","ier","iest","ily"].forEach(f => out.add(t + f));
+    }
+    /* e 结尾：去掉 e 再加（ache→aching、move→moving、large→largest） */
+    if(/e$/.test(b)){
+      const t = b.slice(0,-1);
+      ["ing","ed","er","est"].forEach(f => out.add(t + f));
+    }
+    /* 辅音-元音-辅音结尾：双写末字母（occur→occurred、plan→planning、scan→scanner） */
+    if(/[^aeiou][aeiou][bdgklmnprtvz]$/.test(b)){
+      const t = b + b.slice(-1);
+      ["ed","ing","er"].forEach(f => out.add(t + f));
+    }
+  };
+  bases.forEach(add);
+  return [...out];
+}
+
+const EG_ESC = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 function egHTML(eg, w){
   const plain = esc(eg);
   if(!w) return plain;
   try{
-    const re = new RegExp("\\b(" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + EG_SUF + ")\\b", "i");
+    /* 长的排前面：正则的或分支是从左往右试，先试 "accompanied" 再试 "accompany" */
+    const pat = egForms(w).sort((a,b) => b.length - a.length).map(EG_ESC).join("|");
+    const re = new RegExp("\\b(" + pat + ")\\b", "gi");
     return plain.replace(re, "<b>$1</b>");
   }catch(e){ return plain; }
 }
@@ -5286,7 +5381,7 @@ function applyBank(id){
   W = buildIndex(b.words);
   BY_WORD = new Map(W.map(x => [x.w, x]));
   LETTERS = [...new Set(W.map(x => x.l))].sort();
-  store = { st:{}, wr:{}, seen:{}, days:{}, eb:{} };
+  store = { st:{}, wr:{}, seen:{}, days:{}, eb:{}, ck:{} };
   load();
   libState.q=""; libState.tag="ALL"; libState.tp="ALL"; libState.status="NEW"; libState.shown=150; libList=[];
   cardState.scope="NEW"; cardState.queue=[]; cardState.i=0; cardState.flipped=false; cardState.queueScope=null;
@@ -5334,7 +5429,10 @@ function switchBank(id){
   toast(b.words.length ? ("已切换到 " + b.pill + " 词库") : (b.pill + " 词库待导入"));
 }
 
-const lv = w => store.st[w] || 0;
+/* 取值只有三种：0 未学 / 1 不认识 / 3 已掌握。
+   旧进度里若残留 2（0.6.26 那版短暂存在的「模糊」），一律按「不认识」读 ——
+   它是「还没拿下」，不能算进未学习（否则统计对不上），更不能算已掌握。 */
+const lv = w => { const v = store.st[w]; return v === 2 ? 1 : (v || 0); };
 const wrongCount = w => store.wr[w] || 0;
 const isWrong = w => wrongCount(w) > 0;
 
@@ -5342,7 +5440,9 @@ function counts(){
   let m=0, bad=0, unseen=0;
   for(const x of W){
     const l = lv(x.w);
-    if(l===3) m++; else if(l===1) bad++; else unseen++;
+    if(l===3) m++;
+    else if(l===1) bad++;
+    else unseen++;
   }
   return {total:W.length, mastered:m, weak:bad, unseen, done:m+bad, wrong:W.filter(x=>isWrong(x.w)).length};
 }
@@ -5408,7 +5508,13 @@ function famHTML(w){
         + (famStack.length > 1 ? '<button class="fam-back" data-fam-back aria-label="返回">←</button>' : '')
         + '<div class="fam-w">'+esc(x.w)+'</div>'
         + '<button class="fam-x" data-fam-close aria-label="关闭">✕</button></div>'
-        + '<div class="fam-sub">'+esc(x.ph)+' · <b>'+esc(x.pos)+'</b> · '+esc(x.cn)+'</div>';
+        + '<div class="fam-sub">'+esc(x.ph)+' · <b>'+esc(x.pos)+'</b> · '+esc(x.cn)+'</div>'
+        /* 例句紧跟释义：点开一个词，除了「什么意思」，最想知道的是「怎么用」 */
+        + ((x.eg || x.egc)
+            ? '<div class="fam-eg">'+(x.eg ? egHTML(x.eg, x.w) : '')
+              + (x.egc ? '<div class="fam-egcn">'+esc(x.egc)+'</div>' : '')
+              + '</div>'
+            : '');
 
   const items = famItems(w);
   if(!items || !items.length){
@@ -5478,7 +5584,6 @@ document.addEventListener("click", e => {
   if(BY_WORD.has(w)) openFam(w);
   else toast("词库未收录 " + w);
 });
-document.addEventListener("keydown", e => { if(e.key === "Escape") closeFam(); });
 
 /* ==================== 顶部状态 ==================== */
 function paintHeader(){
@@ -5868,7 +5973,7 @@ function libFilter(){
 
 function rowHTML(x){
   const l = lv(x.w);
-  return '<div class="row'+(l===3?" st3":(l===1?" st1":""))+'" data-w="'+esc(x.w)+'">'
+  return '<div class="row'+(l===3?" st3":(l===1?" st1":""))+'\" data-w="'+esc(x.w)+'">'
     + '<div><div class="wline"><span class="word">'+esc(x.w)+'</span><span class="ph">'+esc(x.ph)+'</span>'
     + '<span class="pos">'+esc(x.pos)+'</span><span class="tag '+tagCls(x.tag)+'">'+esc(x.tag)+'</span>'
     + (isWrong(x.w)?'<span class="tag t1">错'+wrongCount(x.w)+'</span>':'')+'</div>'
@@ -5970,8 +6075,8 @@ function renderCard(v){
     + '</div>'
     + '<div class="fc" id="fc"><div class="fc-inner" id="fcin"></div></div>'
     + '<div class="fc-acts">'
-    +   '<button class="btn b1" data-lv="1">✗ 不认识 <span class="kbd">1</span></button>'
-    +   '<button class="btn b3" data-lv="3">✓ 认识 <span class="kbd">3</span></button>'
+    +   '<button class="btn b1" data-lv="1">✗ 不认识</button>'
+    +   '<button class="btn b3" data-lv="3">✓ 认识</button>'
     + '</div>'
     /* 闪卡下方：长椭圆形动态进度长条（提示当前掌握进度） */
     + '<div class="fc-prog" id="fcprog" title="掌握进度：评分后实时增长">'
@@ -6017,23 +6122,44 @@ function paintCard(){
     + '<div class="fc-word">'+esc(x.w)+'</div>'
     + '<div class="fc-ph">'+esc(x.ph)+'</div>'
     + '<div class="fc-pos">'+esc(x.pos)+'</div>'
-    + '<div class="fc-hint">点击卡片或按空格查看释义 · '+(cardState.i+1)+' / '+cardState.queue.length+'</div>'
+    + '<div class="fc-hint">点击卡片查看释义 · '+(cardState.i+1)+' / '+cardState.queue.length+'</div>'
     + '</div>'
+    /* 背面顺序：中文释义 → 例句（目标词加粗）→ 译文 → 单词行。
+       例句放在释义后面而不是最下面：翻过来第一眼是「这个词什么意思」，
+       第二眼才是「它怎么用」，最后用单词行收尾 —— 那一行同时是词族的入口。 */
     + '<div class="fc-face fc-back">'
     + '<div class="fc-cn">'+esc(x.cn)+'</div>'
-    + '<div class="fc-ph fc-wd" style="font-size:18px;font-weight:700;color:var(--text)">'+esc(x.w)+'</div>'
+    + ((x.eg || x.egc)
+        ? '<div class="fc-egbox">'
+          + (x.eg ? '<div class="fc-eg">'+egHTML(x.eg, x.w)+'</div>' : '')
+          + (x.egc ? '<div class="fc-egcn">'+esc(x.egc)+'</div>' : '')
+          + '</div>'
+        : '')
+    + '<div class="fc-wd">'+esc(x.w)+'</div>'
     + '<div class="fc-ph">'+esc(x.ph)+' · '+esc(x.pos)+'</div>'
     + '</div>';
 }
 
 function flipCard(){ cardState.flipped = !cardState.flipped; const fc=$("#fc"); if(fc) fc.classList.toggle("flip", cardState.flipped); }
 function nextCard(){ cardState.i++; cardState.flipped=false; paintCard(); }
-function prevCard(){ if(cardState.i>0) cardState.i--; cardState.flipped=false; paintCard(); }
 function gradeCard(n){
   const x = cardState.queue[cardState.i]; if(!x) return;
-  mark(x.w, n);
-  if(n===1) markWrong(x.w);
-  toast(LEVEL[n] + "：" + x.w);
+  let msg = LEVEL[n] + "：" + x.w;
+  if(n === 1){
+    /* 判错：错词本 +1，连对计数清零（昨天蒙对一次不算数） */
+    clearRight(x.w);
+    markWrong(x.w);
+    mark(x.w, 1);
+  } else {
+    /* 判对：状态直接置「已掌握」；错词本另走一条账 —— 要连对两次才移出，
+       第一次答对只记一笔，词还留在本子里再练一遍。 */
+    const wasWrong = isWrong(x.w);
+    const cleared = noteRight(x.w);
+    mark(x.w, 3);
+    if(cleared) msg = "已移出错词本：" + x.w;
+    else if(wasWrong) msg = "再对一次就移出错词本：" + x.w;
+  }
+  toast(msg);
   nextCard();
 }
 
@@ -6169,7 +6295,7 @@ function quizRunHTML(){
   } else {
     const hint = x.w.length<=3 ? "共 "+x.w.length+" 个字母" : x.w[0] + " " + "_ ".repeat(x.w.length-1).trim();
     body = '<div class="qtext small">'+esc(x.cn)+'</div><div class="qsub">'+esc(x.ph)+' · '+esc(x.pos)+' · '+hint+'</div>'
-      + '<div class="spellbox"><input type="text" id="spellinput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="输入英文单词后回车"'+(quiz.answered?" disabled":"")+' value="'+esc(quiz.input)+'"></div>'
+      + '<div class="spellbox"><input type="text" id="spellinput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="输入英文单词"'+(quiz.answered?" disabled":"")+' value="'+esc(quiz.input)+'"></div>'
       + '<div style="text-align:center"><button class="btn primary" id="spellcheck" '+(quiz.answered?"disabled":"")+'>提交</button></div>';
   }
 
@@ -6179,12 +6305,18 @@ function quizRunHTML(){
     ex = '<div class="explain"><span class="verdict '+(ok?"ok":"no")+'">'+(ok?"✓ 回答正确":"✗ 回答错误 —— 正确答案是 "+x.w)+'</span>'
       + '<b>'+esc(x.w)+'</b> '+esc(x.ph)+' <span class="ph">'+esc(x.pos)+'</span> —— '+esc(x.cn)
       + ' <span class="tag '+tagCls(x.tag)+'">'+esc(x.tag)+'</span>'
-      + (quiz.cleared?' <span class="tag tok">已移出错词本 · 已掌握</span>':'')+'</div>';
+      + (quiz.cleared?' <span class="tag tok">已移出错词本 · 已掌握</span>':'')
+      /* 答完给例句：拼写和中译英以前只给「单词 + 释义」，看不到这个词怎么用。
+         英译中的题面本来就有这句，所以这里对它是重复的；但那一遍是「猜答案」，
+         这一遍是「对完答案再看语境」，位置不同、作用也不同。 */
+      + (x.eg ? '<div class="ex-eg">'+egHTML(x.eg, x.w)+'</div>' : '')
+      + (x.egc ? '<div class="ex-egcn">'+esc(x.egc)+'</div>' : '')
+      + '</div>';
   }
 
   const foot = quiz.answered
     ? '<div class="toolbar" style="margin-top:16px"><div style="flex:1"></div><button class="btn primary" id="qnext">'+(quiz.i+1>=total?"查看成绩":"下一题 →")+'</button></div>'
-    : '<div class="toolbar" style="margin-top:16px"><span style="font-size:12.5px;color:var(--muted)">'+(quiz.mode==="spell"?"输入后按回车提交":"点击选项作答")+'</span></div>';
+    : '<div class="toolbar" style="margin-top:16px"><span style="font-size:12.5px;color:var(--muted)">'+(quiz.mode==="spell"?"输入后点「提交」":"点击选项作答")+'</span></div>';
 
   return '<div class="panel">'+head+body+ex+foot+'</div>';
 }
@@ -6198,8 +6330,6 @@ function bindQuizRun(v){
   }));
   const sc = $("#spellcheck");
   if(sc) sc.addEventListener("click", () => { if(!quiz.answered) answer(); });
-  const si = $("#spellinput");
-  if(si) si.addEventListener("keydown", e => { if(e.key==="Enter" && !quiz.answered){ e.preventDefault(); answer(); } });
   const nx = $("#qnext");
   if(nx) nx.addEventListener("click", () => { quiz.i++; nextQuestion(); });
   const qq = $("#qquit");
@@ -6216,16 +6346,16 @@ function answer(){
   const ok = quiz.mode==="spell" ? quiz.input.trim().toLowerCase()===x.w : quiz.chosen===q.ans;
   if(ok){
     quiz.right++;
-    /* 错词本里的词，测验答对即视为掌握：移出错词本 + 状态置为已掌握 */
-    quiz.cleared = isWrong(x.w);
-    if(quiz.cleared) delete store.wr[x.w];
+    /* 答对即「认识」。错词本另走一条账：连对两次才移出，
+       第一次答对只记一笔，词还留在本子里。 */
+    quiz.cleared = noteRight(x.w);
     mark(x.w, 3);
   } else {
     quiz.cleared = false;
+    clearRight(x.w);
     quiz.wrong.push(x); markWrong(x.w); mark(x.w, 1);
   }
   render();
-  if(quiz.mode==="spell"){ const n=$("#qnext"); if(n) n.focus(); }
 }
 
 /* ==================== 错词本 ==================== */
@@ -6234,7 +6364,7 @@ function renderWrong(v){
   v.innerHTML = '<div class="panel">'
     + '<div class="toolbar">'
     +   '<span style="font-size:14px;font-weight:700">错词本</span>'
-    +   '<span style="font-size:12.5px;color:var(--muted)">共 '+list.length+' 词 · 答错自动收录</span>'
+    +   '<span style="font-size:12.5px;color:var(--muted)">共 '+list.length+' 词 · 答错自动收录 · 连对两次移出</span>'
     +   '<div style="flex:1"></div>'
     +   '<button class="btn" id="wcard" '+(list.length?"":"disabled")+'>用闪卡复习</button>'
     +   '<button class="btn" id="wquiz" '+(list.length?"":"disabled")+'>开始测验</button>'
@@ -6244,6 +6374,8 @@ function renderWrong(v){
         ? list.map(x => '<div class="row" data-w="'+esc(x.w)+'">'
             + '<div><div class="wline"><span class="word">'+esc(x.w)+'</span><span class="ph">'+esc(x.ph)+'</span>'
             + '<span class="pos">'+esc(x.pos)+'</span><span class="tag t1">错 '+wrongCount(x.w)+' 次</span>'
+            /* 已经答对一次的，露出「还差一次」——不然用户不知道这词为什么还在本子里 */
+            + ((store.ck||{})[x.w] ? '<span class="tag tok">连对 '+store.ck[x.w]+'/2</span>' : '')
             + '<span class="tag '+tagCls(x.tag)+'">'+esc(x.tag)+'</span></div>'
             + '<div class="cn">'+esc(x.cn)+'</div></div>'
             + '<div class="rowacts"><button class="sbtn" data-act="rm" title="移出错词本">🗑</button></div>'
@@ -6451,21 +6583,9 @@ function download(name, text, type){
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
 
-/* ==================== 全局交互 ==================== */
-document.addEventListener("keydown", e => {
-  if(e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
-  if(!$("#lock").hidden) return;          // 还锁着的时候不响应快捷键
-  if(tab!=="card") return;
-  if(e.key===" "||e.key==="Enter"){ e.preventDefault(); flipCard(); }
-  else if(e.key==="1") gradeCard(1);
-  else if(e.key==="3") gradeCard(3);
-  else if(e.key==="ArrowRight") nextCard();
-  else if(e.key==="ArrowLeft") prevCard();
-});
-
 function resetAll(){
   if(!confirm("确定重置全部学习进度？词库本身不受影响。")) return;
-  store = { st:{}, wr:{}, seen:{}, days:{}, eb:{} };
+  store = { st:{}, wr:{}, seen:{}, days:{}, eb:{}, ck:{} };
   save(); paintHeader(); render(); toast("学习进度已重置");
 }
 
@@ -6718,7 +6838,6 @@ function renderActivation(reason, exp){
     } else fallbackCopy(code, done);
   });
   $("#actGo").addEventListener("click", doActivate);
-  $("#actInput").addEventListener("keydown", e => { if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); doActivate(); } });
 }
 
 function fallbackCopy(text, done){
@@ -6810,7 +6929,6 @@ $("#bankPop").addEventListener("click", e => {
   const c = e.target.closest(".bank-chip"); if(!c) return;
   switchBank(c.dataset.bank);
 });
-document.addEventListener("keydown", e => { if(e.key === "Escape") closeBankPop(); });
 
 /* 流动背景：切到后台就把动画暂停（CSS 动画跑在合成线程上，WebView 不一定替你停） */
 document.addEventListener("visibilitychange", () => {
