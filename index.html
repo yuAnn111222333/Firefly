@@ -21,7 +21,7 @@
        整站只在这三个色相上做明度/饱和度的加减，不再出现蓝色系。
        换色由 android/tools/retheme.py 统一完成，别零散手改。 */
     --text:#1d2b2e; --muted:#6b8185;
-    --line:#e2ecec; --brand:#43808f; --brand-soft:#e6f1f2;
+    --brand:#43808f; --brand-soft:#e6f1f2;
     /* 奶油色只做点缀：色斑、光晕、强调数字，不用它铺面 */
     --accent-soft:#f6f2d9;
     --ok:#12a06a; --ok-soft:#e6f7ef; --bad:#e0463c; --bad-soft:#fdecea;
@@ -6426,7 +6426,6 @@ function renderMe(v){
   const ebPlan = ebWeekPlan();
   const ebTracked = W.filter(x => store.eb[x.w]).length;
   const ebDone = W.filter(x => { const e = store.eb[x.w]; return e && e.t === 0; }).length;
-  const todayStr = todayKey();
 
   /* 复习建议：根据当前状态给出智能提示 */
   let ebAdvice = "";
@@ -6916,8 +6915,6 @@ document.addEventListener("gesturechange", e => e.preventDefault(), { passive: f
 document.addEventListener("touchmove", e => {
   if(e.touches && e.touches.length > 1) e.preventDefault();
 }, { passive: false });
-/* 桌面/触控板：Ctrl+滚轮 或 触控板捏合 会被浏览器当成页面缩放，一并拦掉 */
-document.addEventListener("wheel", e => { if(e.ctrlKey) e.preventDefault(); }, { passive: false });
 
 /* 品牌胶囊：点开三颗小胶囊，选库后整页重画 */
 $("#brandBtn").addEventListener("click", e => {
