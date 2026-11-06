@@ -5953,13 +5953,12 @@ function renderEmptyBank(v){
 }
 
 /* ==================== 词库 ==================== */
-const libState = { q:"", letter:"ALL", tag:"ALL", tp:"ALL", status:"NEW", shown:150 };
+const libState = { q:"", tag:"ALL", tp:"ALL", status:"NEW", shown:150 };
 let libList = [];
 
 function libFilter(){
   const q = libState.q.trim().toLowerCase();
   libList = W.filter(x => {
-    if(libState.letter!=="ALL" && x.l!==libState.letter) return false;
     if(libState.tag!=="ALL" && x.tag!==libState.tag) return false;
     if(libState.tp!=="ALL" && x.tp!==libState.tp) return false;
     const l = lv(x.w);
@@ -6179,7 +6178,7 @@ function quizPool(){
 }
 
 function renderQuiz(v){
-  if(!quiz.running){ v.innerHTML = quizSetupHTML(); bindQuizSetup(v); return; }
+  if(!quiz.running){ v.innerHTML = quizSetupHTML(); bindQuizSetup(); return; }
   v.innerHTML = quizRunHTML();
   bindQuizRun(v);
 }
@@ -6224,7 +6223,7 @@ function quizTopicHTML(){
     + '</div>';
 }
 
-function bindQuizSetup(v){
+function bindQuizSetup(){
   $("#qmode").addEventListener("click", e => { const b=e.target.closest("button[data-m]"); if(!b) return; quiz.mode=b.dataset.m; render(); });
   $("#qscope").addEventListener("click", e => { const b=e.target.closest("button[data-s]"); if(!b) return; quiz.scope=b.dataset.s; render(); });
   const tp = $("#qtopic");
@@ -6322,7 +6321,6 @@ function quizRunHTML(){
 }
 
 function bindQuizRun(v){
-  const q = quiz.cur;
   v.querySelectorAll(".opt").forEach(b => b.addEventListener("click", () => {
     if(quiz.answered) return;
     quiz.chosen = +b.dataset.i;
