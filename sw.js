@@ -3,7 +3,7 @@
    - 页面导航：先走网络拿新版，失败（离线）才用缓存 —— 保证更新能生效
    - 图标 / manifest / sw 自身：先给缓存，后台再更新
    改动缓存内容时把 VERSION 加一，旧的会在 activate 里清掉。 */
-const VERSION = "v3";
+const VERSION = "v4";
 const CACHE = "ying-" + VERSION;
 
 const PRECACHE = [
